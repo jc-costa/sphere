@@ -10,6 +10,9 @@ const M=[
  {e:'val-light',c:'card-light',k:'tlsLUX',u:'lux',d:0}
 ];
 let ci=null,lr=[],us=false;
+const MN={tempBME:'Temperature',humBME:'Humidity',pressBME:'Pressure',co2SGP:'CO2',tlsLUX:'Light'};
+const MU={tempBME:'°C',humBME:'%',pressBME:'hPa',co2SGP:'ppm',tlsLUX:'lux'};
+let curMetric='tempBME';
 function parseCSV(t){
  var r=[],ls=t.split(/\r?\n/);if(!ls.length)return r;
  var h=[],q=false,c='';
@@ -41,12 +44,13 @@ async function fet(){
  var d=parseCSV(t);console.log('Fetched '+d.length+' rows');return d
 }
 function glv(d){return d.length?d[d.length-1]:null}
-function pcd(d){
+function pcd(d,key){
+ key=key||'tempBME';
  var s=d.slice(-CR),la=[],va=[];
  s.forEach(function(r){
   var ts=r['Data/Hora']||'',t='',p=ts.split(' ');
   if(p.length>1){var h=p[1].split(':');t=h[0]+':'+h[1]}else t=ts;
-  la.push(t);var n=parseFloat(r['tempBME']);va.push(isNaN(n)?null:n)
+  la.push(t);var n=parseFloat(r[key]);va.push(isNaN(n)?null:n)
  });
  return{l:la,v:va}
 }
@@ -73,9 +77,10 @@ function updC(d){
 function updCh(d){
  var cv=document.getElementById('sensor-chart');if(!cv)return;
  if(ci){ci.destroy();ci=null}
- var pd=pcd(d);
+ var lb=MN[curMetric]||'Value',un=MU[curMetric]||'';
+ var pd=pcd(d,curMetric);
  ci=new Chart(cv.getContext('2d'),{
-  type:'line',data:{labels:pd.l,datasets:[{label:'Temperature (C)',data:pd.v,
+  type:'line',data:{labels:pd.l,datasets:[{label:lb+' ('+un+')',data:pd.v,
    borderColor:'#66BB6A',backgroundColor:'rgba(129,199,132,0.2)',borderWidth:2.5,
    pointRadius:3.5,pointBackgroundColor:'#66BB6A',pointBorderColor:'#fff',
    pointBorderWidth:1.5,pointHoverRadius:6,fill:true,tension:0.3}]},
@@ -86,7 +91,7 @@ function updCh(d){
     tooltip:{backgroundColor:'rgba(46,125,50,0.9)',cornerRadius:8,padding:10}},
    scales:{x:{grid:{color:'rgba(165,214,167,0.3)'},ticks:{maxRotation:45,maxTicksLimit:12}},
     y:{beginAtZero:false,grid:{color:'rgba(165,214,167,0.3)'},ticks:{padding:8},
-     title:{display:true,text:'Temperature (C)',color:'#66BB6A',font:{size:11,weight:'600'}}}}}
+     title:{display:true,text:lb+' ('+un+')',color:'#66BB6A',font:{size:11,weight:'600'}}}}}
  })
 }
 function updT(d){
@@ -121,6 +126,11 @@ function fb(){
  showW('Sheet not published. File > Share > Publish to web. Showing sample data.');
  var sd=parseCSV(SD);lr=sd;
  if(sd.length){updC(sd);updCh(sd);updT(sd);updTS()}
+}
+function setActive(k){
+ document.querySelectorAll('.metric-card').forEach(function(c){c.classList.remove('active')});
+ var m=M.find(function(x){return x.k===k});
+ if(m){var el=document.getElementById(m.c);if(el)el.classList.add('active')}
 }
 async function fau(){
  showL();
@@ -170,4 +180,10 @@ document.addEventListener('DOMContentLoaded',function(){
  })}
  var t2;window.addEventListener('resize',function(){clearTimeout(t2);t2=setTimeout(function(){
   if(ci){ci.options.aspectRatio=window.innerWidth<768?1.2:2;ci.resize()}},250)})
+ // Card click handlers for chart switching
+ M.forEach(function(m){
+  var el=document.getElementById(m.c);
+  if(el){el.addEventListener('click',function(){curMetric=m.k;setActive(curMetric);if(lr.length){updCh(lr);updTS()}})}
+ });
+ setActive(curMetric);
 })
