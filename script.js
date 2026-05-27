@@ -78,6 +78,8 @@ function updCh(d){
  var cv=document.getElementById('sensor-chart');if(!cv)return;
  if(ci){ci.destroy();ci=null}
  var lb=MN[curMetric]||'Value',un=MU[curMetric]||'';
+ var ct=document.getElementById('chart-title');
+ if(ct)ct.innerHTML='<i class="fas fa-chart-line"></i> '+lb+' ('+un+') (Last 24 Readings)';
  var pd=pcd(d,curMetric);
  ci=new Chart(cv.getContext('2d'),{
   type:'line',data:{labels:pd.l,datasets:[{label:lb+' ('+un+')',data:pd.v,
