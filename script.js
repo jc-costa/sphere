@@ -167,20 +167,20 @@ function updateChart(data) {
     var pts = prepareChartData(data, currentMetric);
     if (currentChart) { currentChart.destroy(); currentChart = null; }
 
-    // Filter to last 6 hours for default view
+    // Keep last 24 hours of data for the chart
     var allPts = pts;
     var maxX = null;
     if (pts.length > 0) {
         maxX = pts[pts.length - 1].x.getTime();
-        var cutoff = maxX - 6 * 3600000;
+        var cutoff = maxX - 24 * 3600000;
         pts = pts.filter(function(p) { return p.x.getTime() >= cutoff; });
     }
 
-    // Set canvas width based on ALL data so scrolling reaches older points
-    if (allPts.length > 1) {
-        var fullSpan = allPts[allPts.length - 1].x.getTime() - allPts[0].x.getTime();
-        var hrs = fullSpan / 3600000;
-        var w = Math.max(800, Math.min(hrs * 90, 3000));
+    // Set canvas width proportional to total time span for horizontal scrolling
+    if (pts.length > 1) {
+        var span = pts[pts.length - 1].x.getTime() - pts[0].x.getTime();
+        var hrs = span / 3600000;
+        var w = Math.max(800, hrs * 60);
         canvas.style.width = w + 'px';
         canvas.style.maxWidth = w + 'px';
     } else {
@@ -254,7 +254,7 @@ function updateChart(data) {
                     },
                     grid: { color: 'rgba(0,0,0,0.05)', drawBorder: true },
                     title: { display: true, text: 'Time', color: '#6B8E6B', font: { size: 12 } },
-                    ticks: { font: { size: 10 }, maxRotation: 30, autoSkip: true, maxTicksLimit: 12, stepSize: 2 }
+                    ticks: { font: { size: 10 }, maxRotation: 30, autoSkip: true, maxTicksLimit: 12, stepSize: 1 }
                 },
                 y: {
                     grid: { color: 'rgba(0,0,0,0.05)' },
@@ -265,6 +265,14 @@ function updateChart(data) {
             }
         }
     });
+
+    // Scroll wrapper to far right so latest data is visible
+    if (pts.length > 0 && maxX) {
+        var wrapper = document.querySelector('.chart-scroll-wrap');
+        if (wrapper) {
+            setTimeout(function() { wrapper.scrollLeft = wrapper.scrollWidth; }, 50);
+        }
+    }
 }
 
 // Update recent records table (last 10 raw rows)
