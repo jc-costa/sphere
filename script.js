@@ -100,47 +100,34 @@ function hideWarning() {
 }
 
 // Extract hour (0-23) from timestamp string "DD/MM/YYYY HH:MM:SS" or Date object
-function getHourFromTimestamp(ts) {
-    if (!ts) return undefined;
+function parseTimestamp(ts) {
+    if (!ts) return null;
     if (typeof ts === 'string') {
-        const match = ts.match(/(\d{1,2}):/);
-        if (match) return parseInt(match[1], 10);
+        var parts = ts.split(/[\s\/:]/);
+        if (parts.length >= 6) {
+            var d = new Date(parseInt(parts[2],10), parseInt(parts[1],10)-1, parseInt(parts[0],10),
+                             parseInt(parts[3],10), parseInt(parts[4],10), parseInt(parts[5],10));
+            return isNaN(d.getTime()) ? null : d;
+        }
     }
-    if (ts instanceof Date) return ts.getHours();
-    return undefined;
+    if (ts instanceof Date) return ts;
+    return null;
 }
 
 // Prepare data for 24h fixed axis with forward fill and store original timestamps
 function prepareChartData(data, metricKey) {
-    const hourLabels = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
-    let hourValues = new Array(24).fill(null);
-    let hourTimestamps = new Array(24).fill(null); // stores the original timestamp string
-
-    // First pass: fill actual readings into their hour bucket (latest overwrites)
-    data.forEach(row => {
-        const hour = getHourFromTimestamp(row['Data/Hora']);
-        if (hour === undefined) return;
-        let val = row[metricKey];
+    var points = [];
+    data.forEach(function(row) {
+        var date = parseTimestamp(row['Data/Hora']);
+        if (!date) return;
+        var val = row[metricKey];
         if (val === undefined || val === null || val === '') return;
         val = parseFloat(val);
         if (isNaN(val)) return;
-        hourValues[hour] = val;
-        hourTimestamps[hour] = row['Data/Hora']; // store the original full timestamp
+        points.push({ x: date, y: val, ts: row['Data/Hora'] });
     });
-
-    // Forward fill: propagate last known value and its timestamp to missing hours
-    let lastVal = null, lastTs = null;
-    for (let i = 0; i < 24; i++) {
-        if (hourValues[i] !== null) {
-            lastVal = hourValues[i];
-            lastTs = hourTimestamps[i];
-        } else if (lastVal !== null) {
-            hourValues[i] = lastVal;
-            hourTimestamps[i] = lastTs;
-        }
-    }
-
-    return { labels: hourLabels, values: hourValues, timestamps: hourTimestamps };
+    points.sort(function(a, b) { return a.x - b.x; });
+    return points;
 }
 
 // Update metric cards
@@ -172,67 +159,71 @@ function updateCards(data) {
 
 // Update chart with current metric
 function updateChart(data) {
-    const canvas = document.getElementById('sensor-chart');
+    var canvas = document.getElementById('sensor-chart');
     if (!canvas) return;
-    const metric = METRICS.find(m => m.id === currentMetric);
+    var metric = METRICS.find(function(m){return m.id===currentMetric});
     if (!metric) return;
 
-    const { labels, values, timestamps } = prepareChartData(data, currentMetric);
-    if (currentChart) currentChart.destroy();
+    var pts = prepareChartData(data, currentMetric);
+    if (currentChart) { currentChart.destroy(); currentChart = null; }
 
-    // Update chart title
-    const titleEl = document.getElementById('chart-title');
+    var titleEl = document.getElementById('chart-title');
     if (titleEl) {
-        titleEl.innerHTML = `<i class="fas fa-chart-line"></i> ${metric.label} (${metric.unit}) (Last 24 Hours)`;
+        titleEl.innerHTML = '<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+')';
     }
 
     currentChart = new Chart(canvas, {
         type: 'line',
         data: {
-            labels: labels,
             datasets: [{
-                label: `${metric.label} (${metric.unit})`,
-                data: values,
+                label: metric.label+' ('+metric.unit+')',
+                data: pts,
                 borderColor: '#66BB6A',
-                backgroundColor: 'rgba(102, 187, 106, 0.1)',
+                backgroundColor: 'rgba(102,187,106,0.1)',
                 borderWidth: 2.5,
-                pointRadius: 3.5,
+                pointRadius: 2.5,
                 pointBackgroundColor: '#2E7D32',
                 pointBorderColor: '#fff',
-                pointBorderWidth: 1.5,
-                pointHoverRadius: 6,
+                pointBorderWidth: 1,
+                pointHoverRadius: 5,
                 fill: true,
-                tension: 0.3,
-                rawTimestamps: timestamps  // custom property for tooltip
+                tension: 0.15,
+                parsing: { xAxisKey: 'x', yAxisKey: 'y' }
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
+            aspectRatio: window.innerWidth<768 ? 1.2 : 2.5,
             plugins: {
                 tooltip: {
                     callbacks: {
+                        title: function(items) {
+                            var pt = items[0].raw;
+                            return pt.ts || '';
+                        },
                         label: function(context) {
-                            let value = context.raw;
-                            let timestamp = context.dataset.rawTimestamps[context.dataIndex];
-                            if (timestamp) {
-                                return `${timestamp}: ${value} ${metric.unit}`;
-                            } else {
-                                return `${context.label}: ${value} ${metric.unit}`;
-                            }
+                            return ' '+context.parsed.y.toFixed(metric.decimals)+' '+metric.unit;
                         }
                     }
                 },
-                legend: { position: 'bottom', labels: { usePointStyle: true } }
+                legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } }
             },
             scales: {
                 x: {
-                    title: { display: true, text: 'Hour of Day', color: '#6B8E6B' },
-                    ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 12 }
+                    type: 'time',
+                    time: {
+                        unit: 'hour',
+                        displayFormats: { hour: 'HH:mm' },
+                        tooltipFormat: 'dd/MM/yyyy HH:mm:ss'
+                    },
+                    title: { display: true, text: 'Time', color: '#6B8E6B' },
+                    ticks: { maxRotation: 30, autoSkip: true, maxTicksLimit: 12, stepSize: 2 }
                 },
                 y: {
-                    title: { display: true, text: `${metric.label} (${metric.unit})`, color: '#66BB6A' },
-                    beginAtZero: false
+                    title: { display: true, text: metric.label+' ('+metric.unit+')', color: '#66BB6A' },
+                    beginAtZero: false,
+                    ticks: { padding: 8 }
                 }
             }
         }
