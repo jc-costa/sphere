@@ -167,6 +167,20 @@ function updateChart(data) {
     var pts = prepareChartData(data, currentMetric);
     if (currentChart) { currentChart.destroy(); currentChart = null; }
 
+    // Calculate time range for 6-hour default view
+    var maxX = null, minX = null;
+    if (pts.length > 0) {
+        maxX = pts[pts.length - 1].x.getTime();
+        minX = pts[0].x.getTime();
+    }
+
+    // Set canvas width for horizontal scrolling (wider = scrollable)
+    var span = maxX && minX ? (maxX - minX) : 86400000;
+    var hrs = span / 3600000;
+    var w = Math.max(800, Math.min(hrs * 80, 2400));
+    canvas.style.width = w + 'px';
+    canvas.style.maxWidth = w + 'px';
+
     var titleEl = document.getElementById('chart-title');
     if (titleEl) {
         titleEl.innerHTML = '<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+')';
@@ -181,7 +195,7 @@ function updateChart(data) {
                 label: metric.label+' ('+metric.unit+')',
                 data: pts,
                 borderColor: '#66BB6A',
-                backgroundColor: 'rgba(102,187,106,0.05)',
+                backgroundColor: 'rgba(102,187,106,0.15)',
                 borderWidth: isMobile ? 2 : 3,
                 pointRadius: isMobile ? 1.5 : 2.5,
                 pointBackgroundColor: '#fff',
@@ -197,8 +211,7 @@ function updateChart(data) {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
-            aspectRatio: isMobile ? 1.2 : 2.5,
+            maintainAspectRatio: false,
             plugins: {
                 tooltip: {
                     backgroundColor: 'rgba(46,125,50,0.95)',
@@ -233,6 +246,8 @@ function updateChart(data) {
                         tooltipFormat: 'dd/MM/yyyy HH:mm:ss'
                     },
                     grid: { color: 'rgba(0,0,0,0.05)', drawBorder: true },
+                    min: maxX ? maxX - 6 * 3600000 : undefined,
+                    max: maxX || undefined,
                     title: { display: true, text: 'Time', color: '#6B8E6B', font: { size: 12 } },
                     ticks: { font: { size: 10 }, maxRotation: 30, autoSkip: true, maxTicksLimit: 12, stepSize: 2 }
                 },
