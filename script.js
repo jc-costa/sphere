@@ -163,119 +163,58 @@ function updateChart(data) {
     if (!canvas) return;
     var metric = METRICS.find(function(m){return m.id===currentMetric});
     if (!metric) return;
+    /*N1*/
 
-    var pts = prepareChartData(data, currentMetric);
-    if (currentChart) { currentChart.destroy(); currentChart = null; }
-
-    // Keep last 24 hours of data for the chart
-    var allPts = pts;
-    var maxX = null;
-    if (pts.length > 0) {
-        maxX = pts[pts.length - 1].x.getTime();
-        var cutoff = maxX - 24 * 3600000;
-        pts = pts.filter(function(p) { return p.x.getTime() >= cutoff; });
-    }
-
-    // Set canvas width proportional to total time span for horizontal scrolling
-    if (pts.length > 1) {
-        var span = pts[pts.length - 1].x.getTime() - pts[0].x.getTime();
-        var hrs = span / 3600000;
-        var w = Math.max(800, hrs * 60);
-        canvas.style.width = w + 'px';
-        canvas.style.maxWidth = w + 'px';
-    } else {
-        canvas.style.width = '800px';
-        canvas.style.maxWidth = '800px';
-    }
-
-    var titleEl = document.getElementById('chart-title');
-    if (titleEl) {
-        titleEl.innerHTML = '<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+')';
-    }
-
-    var isMobile = window.innerWidth < 768;
-
-    currentChart = new Chart(canvas, {
-        type: 'line',
-        data: {
-            datasets: [{
-                label: metric.label+' ('+metric.unit+')',
-                data: pts,
-                borderColor: '#66BB6A',
-                backgroundColor: 'rgba(102,187,106,0.15)',
-                borderWidth: isMobile ? 2 : 3,
-                pointRadius: isMobile ? 1.5 : 2.5,
-                pointBackgroundColor: '#fff',
-                pointBorderColor: '#66BB6A',
-                pointBorderWidth: 2,
-                pointHoverRadius: 6,
-                pointHoverBackgroundColor: '#66BB6A',
-                pointHoverBorderColor: '#fff',
-                fill: true,
-                tension: 0.4,
-                parsing: { xAxisKey: 'x', yAxisKey: 'y' }
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                tooltip: {
-                    backgroundColor: 'rgba(46,125,50,0.95)',
-                    titleColor: '#fff',
-                    bodyColor: '#f5f9f5',
-                    cornerRadius: 8,
-                    titleFont: { family: 'Inter', size: isMobile ? 13 : 12 },
-                    bodyFont: { family: 'Inter', size: isMobile ? 13 : 12 },
-                    padding: 10,
-                    callbacks: {
-                        title: function(items) {
-                            var pt = items[0].raw;
-                            return pt.ts || '';
-                        },
-                        label: function(context) {
-                            return '  '+context.parsed.y.toFixed(metric.decimals)+' '+metric.unit;
-                        }
-                    }
-                },
-                legend: {
-                    position: 'top',
-                    align: 'center',
-                    labels: { boxWidth: 10, usePointStyle: true, font: { size: 11 }, padding: 14 }
-                }
-            },
-            scales: {
-                x: {
-                    type: 'time',
-                    time: {
-                        unit: 'hour',
-                        displayFormats: { hour: 'HH:mm' },
-                        tooltipFormat: 'dd/MM/yyyy HH:mm:ss'
-                    },
-                    grid: { color: 'rgba(0,0,0,0.05)', drawBorder: true },
-                    title: { display: true, text: 'Time', color: '#6B8E6B', font: { size: 12 } },
-                    ticks: { font: { size: 10 }, maxRotation: 30, autoSkip: true, maxTicksLimit: 12, stepSize: 1 }
-                },
-                y: {
-                    grid: { color: 'rgba(0,0,0,0.05)' },
-                    title: { display: true, text: metric.label+' ('+metric.unit+')', color: '#6B8E6B', font: { size: 12 } },
-                    beginAtZero: false,
-                    ticks: { font: { size: 10 }, padding: 8 }
-                }
-            }
-        }
+    // Prepare points from ALL data
+    var pts = [];
+    data.forEach(function(row){
+     var ts=row['Data/Hora'];if(!ts)return;
+     var parts=ts.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+     if(!parts)return;
+     var date=new Date(parts[3],parts[2]-1,parts[1],parts[4],parts[5],parts[6]);
+     if(!date||isNaN(date))return;
+     var val=parseFloat(row[metric.id]);
+     if(isNaN(val))return;
+     pts.push({x:date,y:val})
     });
-
-    // Scroll wrapper to far right so latest data is visible
-    if (pts.length > 0 && maxX) {
-        var wrapper = document.querySelector('.chart-scroll-wrap');
-        if (wrapper) {
-            setTimeout(function() { wrapper.scrollLeft = wrapper.scrollWidth; }, 50);
-        }
-    }
+    pts.sort(function(a,b){return a.x-b.x});
+    if(pts.length===0)return;
+    if(currentChart){currentChart.destroy();currentChart=null}
+    var minX=pts[0].x,maxX=pts[pts.length-1].x;
+    var hrs=(maxX-minX)/3600000;
+    var cw=Math.max(800,hrs*60);
+    canvas.style.width=cw+'px';canvas.style.maxWidth=cw+'px';canvas.style.height='400px';
+    var titleEl=document.getElementById('chart-title');
+    if(titleEl)titleEl.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+')';
+    currentChart=new Chart(canvas,{
+     type:'line',data:{datasets:[{
+      label:metric.label+' ('+metric.unit+')',data:pts,
+      borderColor:'#66BB6A',backgroundColor:'rgba(102,187,106,0.2)',
+      borderWidth:2.5,pointRadius:2.5,
+      pointBackgroundColor:'#fff',pointBorderColor:'#66BB6A',pointBorderWidth:2,
+      pointHoverRadius:6,pointHoverBackgroundColor:'#66BB6A',
+      fill:true,tension:0.3
+     }]},
+     options:{
+      responsive:true,maintainAspectRatio:false,
+      scales:{
+       x:{type:'time',time:{unit:'hour',displayFormats:{hour:'HH:mm'},tooltipFormat:'DD/MM/YYYY HH:mm:ss'},
+        ticks:{stepSize:1,autoSkip:true,maxTicksLimit:12,source:'auto'},
+        title:{display:true,text:'Time',color:'#6B8E6B'}
+       },
+       y:{title:{display:true,text:metric.label+' ('+metric.unit+')',color:'#66BB6A'},beginAtZero:false}
+      },
+      plugins:{
+       tooltip:{callbacks:{label:function(ctx){
+        var pt=ctx.raw;return new Date(pt.x).toLocaleString('pt-BR')+': '+pt.y+' '+metric.unit
+       }}},
+       legend:{position:'top',labels:{usePointStyle:true}}
+      }
+     }
+    });
+    var wrapper=document.querySelector('.chart-scroll-wrap');
+    if(wrapper){setTimeout(function(){wrapper.scrollLeft=wrapper.scrollWidth},50)}
 }
-
-// Update recent records table (last 10 raw rows)
 function updateTable(data) {
     const tbody = document.getElementById('table-body');
     if (!tbody) return;
