@@ -46,13 +46,21 @@ async function fet(){
 function glv(d){return d.length?d[d.length-1]:null}
 function pcd(d,key){
  key=key||'tempBME';
- var s=d.slice(-CR),la=[],va=[];
- s.forEach(function(r){
-  var ts=r['Data/Hora']||'',t='',p=ts.split(' ');
-  if(p.length>1){var h=p[1].split(':');t=h[0]+':'+h[1]}else t=ts;
-  la.push(t);var n=parseFloat(r[key]);va.push(isNaN(n)?null:n)
+ var hv=[],la=[];
+ for(var i=0;i<24;i++){hv[i]=null;la.push((i<10?'0':'')+i+':00')}
+ d.forEach(function(r){
+  var ts=r['Data/Hora']||'',p=ts.split(' ');
+  if(p.length>1){
+   var hh=p[1].split(':');var h=parseInt(hh[0],10);
+   if(h>=0&&h<24){var n=parseFloat(r[key]);hv[h]=isNaN(n)?null:n}
+  }
  });
- return{l:la,v:va}
+ var last=null;
+ for(var i=0;i<hv.length;i++){
+  if(hv[i]!==null&&hv[i]!==undefined){last=hv[i]}
+  else if(last!==null){hv[i]=last}
+ }
+ return{l:la,v:hv}
 }
 const SD='Data/Hora,tempBME,humBME,pressBME,tlsLUX,co2SGP\n'+
 '15/05/2026 18:46:41,28.89,91.19,1014.83,4.00,400.00\n'+
