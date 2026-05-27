@@ -154,7 +154,7 @@ function updateCards(data) {
         }
     });
     const updateEl = document.getElementById('update-time');
-    if (updateEl) updateEl.textContent = new Date().toLocaleTimeString();
+    if (updateEl) updateEl.textContent = new Date().toLocaleTimeString('pt-BR', { hour12: false });
 }
 
 // Update chart with current metric
