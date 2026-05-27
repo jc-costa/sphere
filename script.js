@@ -46,21 +46,21 @@ async function fet(){
 function glv(d){return d.length?d[d.length-1]:null}
 function pcd(d,key){
  key=key||'tempBME';
- var hv=[],la=[];
- for(var i=0;i<24;i++){hv[i]=null;la.push((i<10?'0':'')+i+':00')}
+ var hv=[],ht=[],la=[];
+ for(var i=0;i<24;i++){hv[i]=null;ht[i]=null;la.push((i<10?'0':'')+i+':00')}
  d.forEach(function(r){
   var ts=r['Data/Hora']||'',p=ts.split(' ');
   if(p.length>1){
    var hh=p[1].split(':');var h=parseInt(hh[0],10);
-   if(h>=0&&h<24){var n=parseFloat(r[key]);hv[h]=isNaN(n)?null:n}
+   if(h>=0&&h<24){var n=parseFloat(r[key]);if(!isNaN(n)){hv[h]=n;ht[h]=ts}}
   }
  });
- var last=null;
- for(var i=0;i<hv.length;i++){
-  if(hv[i]!==null&&hv[i]!==undefined){last=hv[i]}
-  else if(last!==null){hv[i]=last}
+ var lv=null,lt=null;
+ for(var i=0;i<24;i++){
+  if(hv[i]!==null){lv=hv[i];lt=ht[i]}
+  else if(lv!==null){hv[i]=lv;ht[i]=lt}
  }
- return{l:la,v:hv}
+ return{l:la,v:hv,t:ht}
 }
 const SD='Data/Hora,tempBME,humBME,pressBME,tlsLUX,co2SGP\n'+
 '15/05/2026 18:46:41,28.89,91.19,1014.83,4.00,400.00\n'+
@@ -98,7 +98,8 @@ function updCh(d){
    aspectRatio:window.innerWidth<768?1.2:2,
    interaction:{intersect:false,mode:'index'},
    plugins:{legend:{position:'bottom',labels:{usePointStyle:true,padding:20,font:{size:12}}},
-    tooltip:{backgroundColor:'rgba(46,125,50,0.9)',cornerRadius:8,padding:10}},
+    tooltip:{backgroundColor:'rgba(46,125,50,0.9)',cornerRadius:8,padding:10,
+    callbacks:{title:function(ti){var idx=ti[0].dataIndex;return pd.t[idx]||pd.l[idx]}}},
    scales:{x:{grid:{color:'rgba(165,214,167,0.3)'},ticks:{maxRotation:45,maxTicksLimit:12}},
     y:{beginAtZero:false,grid:{color:'rgba(165,214,167,0.3)'},ticks:{padding:8},
      title:{display:true,text:lb+' ('+un+')',color:'#66BB6A',font:{size:11,weight:'600'}}}}}
