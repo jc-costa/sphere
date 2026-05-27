@@ -1,200 +1,327 @@
-/* SPheRe Dashboard - CSV */
-const S='1sApufLQS6G6nFu-P6q7jfjQIG1RFcgkopQUTS2rvQEg';
-const U='https://docs.google.com/spreadsheets/d/'+S+'/export?format=csv&gid=0';
-const RI=300000,CR=24,TR=10;
-const M=[
- {e:'val-temp',c:'card-temp',k:'tempBME',u:'°C',d:1},
- {e:'val-humidity',c:'card-humidity',k:'humBME',u:'%',d:1},
- {e:'val-pressure',c:'card-pressure',k:'pressBME',u:'hPa',d:2},
- {e:'val-co2',c:'card-co2',k:'co2SGP',u:'ppm',d:0},
- {e:'val-light',c:'card-light',k:'tlsLUX',u:'lux',d:0}
+/* SPheRe Dashboard - 24h Axis with Real Timestamps in Tooltip */
+const SHEET_ID = '1sApufLQS6G6nFu-P6q7jfjQIG1RFcgkopQUTS2rvQEg';
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+const REFRESH_INTERVAL = 300000; // 5 minutes
+let currentChart = null;
+let currentData = [];
+let isLoading = false;
+let currentMetric = 'tempBME';
+
+// Metric configuration
+const METRICS = [
+    { id: 'tempBME', label: 'Temperature', unit: '°C', decimals: 1, cardId: 'val-temp', cardElementId: 'card-temp' },
+    { id: 'humBME', label: 'Humidity', unit: '%', decimals: 1, cardId: 'val-humidity', cardElementId: 'card-humidity' },
+    { id: 'pressBME', label: 'Pressure', unit: 'hPa', decimals: 2, cardId: 'val-pressure', cardElementId: 'card-pressure' },
+    { id: 'co2SGP', label: 'CO₂', unit: 'ppm', decimals: 0, cardId: 'val-co2', cardElementId: 'card-co2' },
+    { id: 'tlsLUX', label: 'Light', unit: 'lux', decimals: 0, cardId: 'val-light', cardElementId: 'card-light' }
 ];
-let ci=null,lr=[],us=false;
-const MN={tempBME:'Temperature',humBME:'Humidity',pressBME:'Pressure',co2SGP:'CO2',tlsLUX:'Light'};
-const MU={tempBME:'°C',humBME:'%',pressBME:'hPa',co2SGP:'ppm',tlsLUX:'lux'};
-let curMetric='tempBME';
-function parseCSV(t){
- var r=[],ls=t.split(/\r?\n/);if(!ls.length)return r;
- var h=[],q=false,c='';
- for(var i=0;i<ls[0].length;i++){
-  var x=ls[0][i];
-  if(x=='"'){q=!q}else if(x==','&&!q){h.push(c.trim());c=''}else{c+=x}
- }
- h.push(c.trim());var ch=h.map(function(s){return s.replace(/^"|"$/g,'')});
- for(var i=1;i<ls.length;i++){
-  var l=ls[i];if(!l.trim())continue;
-  var v=[];q=false;c='';
-  for(var j=0;j<l.length;j++){
-   var x=l[j];
-   if(x=='"'){q=!q}else if(x==','&&!q){v.push(c.trim());c=''}else{c+=x}
-  }
-  v.push(c.trim());var cv=v.map(function(s){return s.replace(/^"|"$/g,'')});
-  var o={};
-  ch.forEach(function(hd,idx){
-   var vl=cv[idx]||'';
-   if(!isNaN(parseFloat(vl))&&isFinite(vl)&&vl!==''){vl=parseFloat(vl)}
-   o[hd]=vl
-  });
-  if(o['Data/Hora']&&o['Data/Hora']!=='')r.push(o)
- }
- return r
+
+// Sample data fallback (same structure)
+const SAMPLE_CSV = `Data/Hora,tempBME,humBME,pressBME,tlsLUX,co2SGP\n15/05/2026 18:46:41,28.89,91.19,1014.83,4.00,400.00\n15/05/2026 19:03:36,28.10,88.83,1014.95,0.00,405.00\n15/05/2026 19:24:35,28.06,89.33,1015.09,0.00,410.00`;
+
+// ---------- Helper functions ----------
+function parseCSV(csvText) {
+    const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length < 2) return [];
+
+    // Parse headers (robust to quotes)
+    let headers = [];
+    let inQuote = false, current = '';
+    for (let char of lines[0]) {
+        if (char === '"') inQuote = !inQuote;
+        else if (char === ',' && !inQuote) { headers.push(current.trim()); current = ''; }
+        else current += char;
+    }
+    headers.push(current.trim());
+    const cleanHeaders = headers.map(h => h.replace(/^"|"$/g, ''));
+
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line.trim()) continue;
+        let values = [];
+        inQuote = false; current = '';
+        for (let char of line) {
+            if (char === '"') inQuote = !inQuote;
+            else if (char === ',' && !inQuote) { values.push(current.trim()); current = ''; }
+            else current += char;
+        }
+        values.push(current.trim());
+        const cleanValues = values.map(v => v.replace(/^"|"$/g, ''));
+        const row = {};
+        cleanHeaders.forEach((h, idx) => {
+            let v = cleanValues[idx] || '';
+            if (!isNaN(parseFloat(v)) && isFinite(v) && v !== '') v = parseFloat(v);
+            row[h] = v;
+        });
+        if (row['Data/Hora'] && row['Data/Hora'] !== '') data.push(row);
+    }
+    return data;
 }
-async function fet(){
- var r=await fetch(U),t=await r.text();
- var d=parseCSV(t);console.log('Fetched '+d.length+' rows');return d
+
+async function fetchSheetData() {
+    if (isLoading) return null;
+    isLoading = true;
+    showLoading(true);
+    try {
+        const response = await fetch(CSV_URL);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const csvText = await response.text();
+        const data = parseCSV(csvText);
+        if (data.length === 0) throw new Error('No data rows');
+        hideWarning();
+        console.log(`✅ Fetched ${data.length} rows`);
+        return data;
+    } catch (err) {
+        console.error('Fetch error:', err);
+        showWarning('Could not fetch live data. Using sample data. Make sure your sheet is published (File → Share → Publish to web).');
+        return parseCSV(SAMPLE_CSV);
+    } finally {
+        isLoading = false;
+        showLoading(false);
+    }
 }
-function glv(d){return d.length?d[d.length-1]:null}
-function pcd(d,key){
- key=key||'tempBME';
- var hv=[],ht=[],la=[];
- for(var i=0;i<24;i++){hv[i]=null;ht[i]=null;la.push((i<10?'0':'')+i+':00')}
- d.forEach(function(r){
-  var ts=r['Data/Hora']||'',p=ts.split(' ');
-  if(p.length>1){
-   var hh=p[1].split(':');var h=parseInt(hh[0],10);
-   if(h>=0&&h<24){var n=parseFloat(r[key]);if(!isNaN(n)){hv[h]=n;ht[h]=ts}}
-  }
- });
- var lv=null,lt=null;
- for(var i=0;i<24;i++){
-  if(hv[i]!==null){lv=hv[i];lt=ht[i]}
-  else if(lv!==null){hv[i]=lv;ht[i]=lt}
- }
- return{l:la,v:hv,t:ht}
+
+function showLoading(show) {
+    const el = document.getElementById('loading-indicator');
+    if (el) el.style.display = show ? 'flex' : 'none';
 }
-const SD='Data/Hora,tempBME,humBME,pressBME,tlsLUX,co2SGP\n'+
-'15/05/2026 18:46:41,28.89,91.19,1014.83,4.00,400.00\n'+
-'15/05/2026 19:03:36,28.10,88.83,1014.95,0.00,405.00\n'+
-'15/05/2026 19:24:35,28.06,89.33,1015.09,0.00,410.00\n'+
-'15/05/2026 19:45:39,28.02,89.73,1015.23,0.00,402.00\n'+
-'15/05/2026 20:06:39,28.02,89.84,1015.24,0.00,412.00\n'+
-'15/05/2026 20:27:42,28.02,90.02,1015.12,0.00,412.00\n'+
-'15/05/2026 20:48:40,28.01,90.17,1015.16,0.00,400.00\n'+
-'15/05/2026 21:09:40,27.97,90.53,1015.42,0.00,412.00\n'+
-'15/05/2026 21:30:48,28.00,90.57,1015.42,0.00,410.00\n'+
-'15/05/2026 21:51:49,27.96,90.74,1015.31,0.00,401.00';
-function updC(d){
- var lat=glv(d);if(!lat)return;
- M.forEach(function(m){
-  var el=document.getElementById(m.e),cd=document.getElementById(m.c);
-  var v=lat[m.k];
-  if(el&&v!==undefined&&v!==''){var n=parseFloat(v);el.textContent=isNaN(n)?v:n.toFixed(m.d)}
-  if(cd){cd.classList.remove('pulse');void cd.offsetWidth;cd.classList.add('pulse')}
- })
+
+function showWarning(msg) {
+    const warning = document.getElementById('data-warning');
+    const msgSpan = document.getElementById('warning-message');
+    if (warning) warning.style.display = 'flex';
+    if (msgSpan) msgSpan.textContent = msg;
 }
-function updCh(d){
- var cv=document.getElementById('sensor-chart');if(!cv)return;
- if(ci){ci.destroy();ci=null}
- var lb=MN[curMetric]||'Value',un=MU[curMetric]||'';
- var ct=document.getElementById('chart-title');
- if(ct)ct.innerHTML='<i class="fas fa-chart-line"></i> '+lb+' ('+un+') (Last 24 Readings)';
- var pd=pcd(d,curMetric);
- ci=new Chart(cv.getContext('2d'),{
-  type:'line',data:{labels:pd.l,datasets:[{label:lb+' ('+un+')',data:pd.v,
-   borderColor:'#66BB6A',backgroundColor:'rgba(129,199,132,0.2)',borderWidth:2.5,
-   pointRadius:3.5,pointBackgroundColor:'#66BB6A',pointBorderColor:'#fff',
-   pointBorderWidth:1.5,pointHoverRadius:6,fill:true,tension:0.3}]},
-  options:{responsive:true,maintainAspectRatio:true,
-   aspectRatio:window.innerWidth<768?1.2:2,
-   interaction:{intersect:false,mode:'index'},
-   plugins:{legend:{position:'bottom',labels:{usePointStyle:true,padding:20,font:{size:12}}},
-    tooltip:{backgroundColor:'rgba(46,125,50,0.9)',cornerRadius:8,padding:10,
-    callbacks:{title:function(ti){var idx=ti[0].dataIndex;return pd.t[idx]||pd.l[idx]}}},
-   scales:{x:{grid:{color:'rgba(165,214,167,0.3)'},ticks:{maxRotation:45,maxTicksLimit:12}},
-    y:{beginAtZero:false,grid:{color:'rgba(165,214,167,0.3)'},ticks:{padding:8},
-     title:{display:true,text:lb+' ('+un+')',color:'#66BB6A',font:{size:11,weight:'600'}}}}}
- })
+
+function hideWarning() {
+    const warning = document.getElementById('data-warning');
+    if (warning) warning.style.display = 'none';
 }
-function updT(d){
- var tb=document.getElementById('table-body');if(!tb)return;
- var sl=d.slice(-TR);
- if(!sl.length){tb.innerHTML='<tr><td colspan="4" class="loading-row">No data</td></tr>';return}
- var h='';
- for(var i=sl.length-1;i>=0;i--){
-  var x=sl[i];
-  var ts=x['Data/Hora']||'-',t=x['tempBME']!==undefined?x['tempBME']:'-';
-  var hm=x['humBME']!==undefined?x['humBME']:'-',co=x['co2SGP']!==undefined?x['co2SGP']:'-';
-  h+='<tr><td>'+esc(ts)+'</td><td>'+t+'</td><td>'+hm+'</td><td>'+co+'</td></tr>'
- }
- tb.innerHTML=h
+
+// Extract hour (0-23) from timestamp string "DD/MM/YYYY HH:MM:SS" or Date object
+function getHourFromTimestamp(ts) {
+    if (!ts) return undefined;
+    if (typeof ts === 'string') {
+        const match = ts.match(/(\d{1,2}):/);
+        if (match) return parseInt(match[1], 10);
+    }
+    if (ts instanceof Date) return ts.getHours();
+    return undefined;
 }
-function esc(s){
- var d=document.createElement('div');
- d.appendChild(document.createTextNode(s));return d.innerHTML
+
+// Prepare data for 24h fixed axis with forward fill and store original timestamps
+function prepareChartData(data, metricKey) {
+    const hourLabels = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+    let hourValues = new Array(24).fill(null);
+    let hourTimestamps = new Array(24).fill(null); // stores the original timestamp string
+
+    // First pass: fill actual readings into their hour bucket (latest overwrites)
+    data.forEach(row => {
+        const hour = getHourFromTimestamp(row['Data/Hora']);
+        if (hour === undefined) return;
+        let val = row[metricKey];
+        if (val === undefined || val === null || val === '') return;
+        val = parseFloat(val);
+        if (isNaN(val)) return;
+        hourValues[hour] = val;
+        hourTimestamps[hour] = row['Data/Hora']; // store the original full timestamp
+    });
+
+    // Forward fill: propagate last known value and its timestamp to missing hours
+    let lastVal = null, lastTs = null;
+    for (let i = 0; i < 24; i++) {
+        if (hourValues[i] !== null) {
+            lastVal = hourValues[i];
+            lastTs = hourTimestamps[i];
+        } else if (lastVal !== null) {
+            hourValues[i] = lastVal;
+            hourTimestamps[i] = lastTs;
+        }
+    }
+
+    return { labels: hourLabels, values: hourValues, timestamps: hourTimestamps };
 }
-function updTS(){var e=document.getElementById('update-time');if(e)e.textContent=new Date().toLocaleTimeString()}
-function showL(){var b=document.getElementById('loading-indicator');if(b)b.style.display='flex'}
-function hideL(){var b=document.getElementById('loading-indicator');if(b)b.style.display='none'}
-function showW(m){var b=document.getElementById('data-warning'),e=document.getElementById('warning-message');
- if(b)b.style.display='flex';if(e)e.textContent=m}
-function hideW(){var b=document.getElementById('data-warning');if(b)b.style.display='none'}
-function fin(r){
- us=false;hideW();hideL();lr=r;
- if(r.length){updC(r);updCh(r);updT(r);updTS()}
+
+// Update metric cards
+function updateCards(data) {
+    if (!data || data.length === 0) return;
+    const latest = data[data.length - 1];
+    METRICS.forEach(metric => {
+        const el = document.getElementById(metric.cardId);
+        if (el) {
+            let val = latest[metric.id];
+            if (val !== undefined && val !== null && val !== '') {
+                const num = parseFloat(val);
+                if (!isNaN(num)) {
+                    el.textContent = num.toFixed(metric.decimals);
+                    // pulse animation
+                    const card = document.getElementById(metric.cardElementId);
+                    if (card) {
+                        card.classList.remove('pulse');
+                        void card.offsetWidth;
+                        card.classList.add('pulse');
+                    }
+                }
+            }
+        }
+    });
+    const updateEl = document.getElementById('update-time');
+    if (updateEl) updateEl.textContent = new Date().toLocaleTimeString();
 }
-function fb(){
- if(us)return;us=true;hideL();
- showW('Sheet not published. File > Share > Publish to web. Showing sample data.');
- var sd=parseCSV(SD);lr=sd;
- if(sd.length){updC(sd);updCh(sd);updT(sd);updTS()}
+
+// Update chart with current metric
+function updateChart(data) {
+    const canvas = document.getElementById('sensor-chart');
+    if (!canvas) return;
+    const metric = METRICS.find(m => m.id === currentMetric);
+    if (!metric) return;
+
+    const { labels, values, timestamps } = prepareChartData(data, currentMetric);
+    if (currentChart) currentChart.destroy();
+
+    // Update chart title
+    const titleEl = document.getElementById('chart-title');
+    if (titleEl) {
+        titleEl.innerHTML = `<i class="fas fa-chart-line"></i> ${metric.label} (${metric.unit}) (Last 24 Hours)`;
+    }
+
+    currentChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: `${metric.label} (${metric.unit})`,
+                data: values,
+                borderColor: '#66BB6A',
+                backgroundColor: 'rgba(102, 187, 106, 0.1)',
+                borderWidth: 2.5,
+                pointRadius: 3.5,
+                pointBackgroundColor: '#2E7D32',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 1.5,
+                pointHoverRadius: 6,
+                fill: true,
+                tension: 0.3,
+                rawTimestamps: timestamps  // custom property for tooltip
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let value = context.raw;
+                            let timestamp = context.dataset.rawTimestamps[context.dataIndex];
+                            if (timestamp) {
+                                return `${timestamp}: ${value} ${metric.unit}`;
+                            } else {
+                                return `${context.label}: ${value} ${metric.unit}`;
+                            }
+                        }
+                    }
+                },
+                legend: { position: 'bottom', labels: { usePointStyle: true } }
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: 'Hour of Day', color: '#6B8E6B' },
+                    ticks: { maxRotation: 45, autoSkip: true, maxTicksLimit: 12 }
+                },
+                y: {
+                    title: { display: true, text: `${metric.label} (${metric.unit})`, color: '#66BB6A' },
+                    beginAtZero: false
+                }
+            }
+        }
+    });
 }
-function setActive(k){
- document.querySelectorAll('.metric-card').forEach(function(c){c.classList.remove('active')});
- var m=M.find(function(x){return x.k===k});
- if(m){var el=document.getElementById(m.c);if(el)el.classList.add('active')}
+
+// Update recent records table (last 10 raw rows)
+function updateTable(data) {
+    const tbody = document.getElementById('table-body');
+    if (!tbody) return;
+    const recent = data.slice(-10).reverse();
+    if (!recent.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="loading-row">No data</td></tr>';
+        return;
+    }
+    let html = '';
+    recent.forEach(row => {
+        const ts = row['Data/Hora'] || '-';
+        const temp = row.tempBME !== undefined ? row.tempBME : '-';
+        const hum = row.humBME !== undefined ? row.humBME : '-';
+        const co2 = row.co2SGP !== undefined ? row.co2SGP : '-';
+        html += `<tr><td>${escapeHtml(ts)}</td><td>${temp}</td><td>${hum}</td><td>${co2}</td></tr>`;
+    });
+    tbody.innerHTML = html;
 }
-async function fau(){
- showL();
- try{var d=await fet();if(!d||!d.length)throw Error('empty');fin(d)}
- catch(e){console.warn('Error:',e.message);fb()}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
 }
-function initSS(){
- var lks=document.querySelectorAll('.nav-link'),secs=document.querySelectorAll('.section[id]');
- function setA(id){lks.forEach(function(l){l.classList.toggle('active',l.getAttribute('data-section')===id)})}
- if('IntersectionObserver'in window){
-  var obs=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)setA(e.target.id)})},{rootMargin:'-80px 0px -50% 0px',threshold:0});
-  secs.forEach(function(s){obs.observe(s)})
- }else{
-  function onSc(){var y=window.pageYOffset+100,id='dashboard';secs.forEach(function(s){var t=s.offsetTop,h=s.offsetHeight;if(y>=t&&y<t+h)id=s.id});setA(id)}
-  window.addEventListener('scroll',onSc,{passive:true});onSc()
- }
+
+// Highlight active metric card
+function setActiveMetricCard(metricId) {
+    METRICS.forEach(m => {
+        const card = document.getElementById(m.cardElementId);
+        if (card) {
+            if (m.id === metricId) card.classList.add('active');
+            else card.classList.remove('active');
+        }
+    });
 }
-function initH(){
- var t=document.getElementById('nav-toggle'),n=document.getElementById('main-nav');
- if(!t||!n)return;
- t.addEventListener('click',function(){
-  n.classList.toggle('open');var i=t.querySelector('i');
-  if(i)i.className=n.classList.contains('open')?'fas fa-times':'fas fa-bars';
-  t.setAttribute('aria-expanded',n.classList.contains('open'))
- });
- n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open');
-  var i=t.querySelector('i');if(i)i.className='fas fa-bars';t.setAttribute('aria-expanded','false')})})
+
+// Main update cycle
+async function fetchAndUpdate() {
+    showLoading(true);
+    const data = await fetchSheetData();
+    if (data && data.length) {
+        currentData = data;
+        updateCards(data);
+        updateChart(data);
+        updateTable(data);
+    }
+    showLoading(false);
 }
-function initSC(){
- document.querySelectorAll('a[href^="#"]').forEach(function(a){a.addEventListener('click',function(e){
-  var id=this.getAttribute('href');if(id==='#')return;
-  var t=document.querySelector(id);if(t){e.preventDefault();
-   window.scrollTo({top:t.getBoundingClientRect().top+window.pageYOffset-64,behavior:'smooth'})}
- })})
-}
-document.addEventListener('DOMContentLoaded',function(){
- hideL();fau();setInterval(fau,RI);
- initSS();initH();initSC();
- var rb=document.getElementById('retry-btn');
- if(rb){rb.addEventListener('click',function(){us=false;hideW();showL();fau()})}
- var ye=document.getElementById('footer-year');if(ye)ye.textContent=new Date().getFullYear();
- var fm=document.getElementById('contact-form');
- if(fm){fm.addEventListener('submit',function(e){e.preventDefault();
-  var b=fm.querySelector('.btn-submit'),o=b.innerHTML;
-  b.innerHTML='<i class="fas fa-check"></i> Sent!';b.style.backgroundColor='#4CAF50';
-  setTimeout(function(){b.innerHTML=o;b.style.backgroundColor='';fm.reset()},3000)
- })}
- var t2;window.addEventListener('resize',function(){clearTimeout(t2);t2=setTimeout(function(){
-  if(ci){ci.options.aspectRatio=window.innerWidth<768?1.2:2;ci.resize()}},250)})
- // Card click handlers for chart switching
- M.forEach(function(m){
-  var el=document.getElementById(m.c);
-  if(el){el.addEventListener('click',function(){curMetric=m.k;setActive(curMetric);if(lr.length){updCh(lr);updTS()}})}
- });
- setActive(curMetric);
-})
+
+// Initialization
+document.addEventListener('DOMContentLoaded', () => {
+    // Card click handlers
+    METRICS.forEach(metric => {
+        const card = document.getElementById(metric.cardElementId);
+        if (card) {
+            card.addEventListener('click', () => {
+                currentMetric = metric.id;
+                setActiveMetricCard(currentMetric);
+                if (currentData.length) {
+                    updateChart(currentData);
+                }
+            });
+        }
+    });
+
+    // Set default active card (temperature)
+    setActiveMetricCard('tempBME');
+
+    // Load data
+    fetchAndUpdate();
+    setInterval(fetchAndUpdate, REFRESH_INTERVAL);
+
+    // Retry button
+    const retryBtn = document.getElementById('retry-btn');
+    if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
+            hideWarning();
+            fetchAndUpdate();
+        });
+    }
+});
