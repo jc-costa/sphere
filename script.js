@@ -172,6 +172,8 @@ function updateChart(data) {
         titleEl.innerHTML = '<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+')';
     }
 
+    var isMobile = window.innerWidth < 768;
+
     currentChart = new Chart(canvas, {
         type: 'line',
         data: {
@@ -179,35 +181,48 @@ function updateChart(data) {
                 label: metric.label+' ('+metric.unit+')',
                 data: pts,
                 borderColor: '#66BB6A',
-                backgroundColor: 'rgba(102,187,106,0.1)',
-                borderWidth: 2.5,
-                pointRadius: 2.5,
-                pointBackgroundColor: '#2E7D32',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 1,
-                pointHoverRadius: 5,
+                backgroundColor: 'rgba(102,187,106,0.05)',
+                borderWidth: isMobile ? 2 : 3,
+                pointRadius: isMobile ? 1.5 : 2.5,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: '#66BB6A',
+                pointBorderWidth: 2,
+                pointHoverRadius: 6,
+                pointHoverBackgroundColor: '#66BB6A',
+                pointHoverBorderColor: '#fff',
                 fill: true,
-                tension: 0.15,
+                tension: 0.4,
                 parsing: { xAxisKey: 'x', yAxisKey: 'y' }
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            aspectRatio: window.innerWidth<768 ? 1.2 : 2.5,
+            aspectRatio: isMobile ? 1.2 : 2.5,
             plugins: {
                 tooltip: {
+                    backgroundColor: 'rgba(46,125,50,0.95)',
+                    titleColor: '#fff',
+                    bodyColor: '#f5f9f5',
+                    cornerRadius: 8,
+                    titleFont: { family: 'Inter', size: isMobile ? 13 : 12 },
+                    bodyFont: { family: 'Inter', size: isMobile ? 13 : 12 },
+                    padding: 10,
                     callbacks: {
                         title: function(items) {
                             var pt = items[0].raw;
                             return pt.ts || '';
                         },
                         label: function(context) {
-                            return ' '+context.parsed.y.toFixed(metric.decimals)+' '+metric.unit;
+                            return '  '+context.parsed.y.toFixed(metric.decimals)+' '+metric.unit;
                         }
                     }
                 },
-                legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } }
+                legend: {
+                    position: 'top',
+                    align: 'center',
+                    labels: { boxWidth: 10, usePointStyle: true, font: { size: 11 }, padding: 14 }
+                }
             },
             scales: {
                 x: {
@@ -217,13 +232,15 @@ function updateChart(data) {
                         displayFormats: { hour: 'HH:mm' },
                         tooltipFormat: 'dd/MM/yyyy HH:mm:ss'
                     },
-                    title: { display: true, text: 'Time', color: '#6B8E6B' },
-                    ticks: { maxRotation: 30, autoSkip: true, maxTicksLimit: 12, stepSize: 2 }
+                    grid: { color: 'rgba(0,0,0,0.05)', drawBorder: true },
+                    title: { display: true, text: 'Time', color: '#6B8E6B', font: { size: 12 } },
+                    ticks: { font: { size: 10 }, maxRotation: 30, autoSkip: true, maxTicksLimit: 12, stepSize: 2 }
                 },
                 y: {
-                    title: { display: true, text: metric.label+' ('+metric.unit+')', color: '#66BB6A' },
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    title: { display: true, text: metric.label+' ('+metric.unit+')', color: '#6B8E6B', font: { size: 12 } },
                     beginAtZero: false,
-                    ticks: { padding: 8 }
+                    ticks: { font: { size: 10 }, padding: 8 }
                 }
             }
         }
