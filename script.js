@@ -167,19 +167,26 @@ function updateChart(data) {
     var pts = prepareChartData(data, currentMetric);
     if (currentChart) { currentChart.destroy(); currentChart = null; }
 
-    // Calculate time range for 6-hour default view
-    var maxX = null, minX = null;
+    // Filter to last 6 hours for default view
+    var allPts = pts;
+    var maxX = null;
     if (pts.length > 0) {
         maxX = pts[pts.length - 1].x.getTime();
-        minX = pts[0].x.getTime();
+        var cutoff = maxX - 6 * 3600000;
+        pts = pts.filter(function(p) { return p.x.getTime() >= cutoff; });
     }
 
-    // Set canvas width for horizontal scrolling (wider = scrollable)
-    var span = maxX && minX ? (maxX - minX) : 86400000;
-    var hrs = span / 3600000;
-    var w = Math.max(800, Math.min(hrs * 80, 2400));
-    canvas.style.width = w + 'px';
-    canvas.style.maxWidth = w + 'px';
+    // Set canvas width based on ALL data so scrolling reaches older points
+    if (allPts.length > 1) {
+        var fullSpan = allPts[allPts.length - 1].x.getTime() - allPts[0].x.getTime();
+        var hrs = fullSpan / 3600000;
+        var w = Math.max(800, Math.min(hrs * 90, 3000));
+        canvas.style.width = w + 'px';
+        canvas.style.maxWidth = w + 'px';
+    } else {
+        canvas.style.width = '800px';
+        canvas.style.maxWidth = '800px';
+    }
 
     var titleEl = document.getElementById('chart-title');
     if (titleEl) {
@@ -246,8 +253,6 @@ function updateChart(data) {
                         tooltipFormat: 'dd/MM/yyyy HH:mm:ss'
                     },
                     grid: { color: 'rgba(0,0,0,0.05)', drawBorder: true },
-                    min: maxX ? maxX - 6 * 3600000 : undefined,
-                    max: maxX || undefined,
                     title: { display: true, text: 'Time', color: '#6B8E6B', font: { size: 12 } },
                     ticks: { font: { size: 10 }, maxRotation: 30, autoSkip: true, maxTicksLimit: 12, stepSize: 2 }
                 },
