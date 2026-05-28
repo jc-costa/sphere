@@ -199,7 +199,7 @@ function updateChart(data) {
       responsive:true,maintainAspectRatio:false,
       scales:{
        x:{type:'time',time:{unit:'hour',displayFormats:{hour:'HH:mm'},tooltipFormat:'DD/MM/YYYY HH:mm:ss'},
-        ticks:{stepSize:1,autoSkip:true,maxTicksLimit:12,source:'auto'},
+        ticks:{stepSize:1,autoSkip:false,maxTicksLimit:24,source:'auto'},
         title:{display:true,text:'Time',color:'#6B8E6B'}
        },
        y:{title:{display:true,text:metric.label+' ('+metric.unit+')',color:'#66BB6A'},beginAtZero:false}
