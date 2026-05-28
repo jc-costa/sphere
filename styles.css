@@ -64,8 +64,8 @@ a:hover{color:var(--primary-dark)}
 .range-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 .last-updated{font-size:.8rem;color:var(--text-secondary);background:var(--bg-light);padding:4px 12px;border-radius:20px;white-space:nowrap}
 .chart-wrapper{position:relative;width:100%}
-.chart-scroll-wrap{width:100%;max-height:400px}
-.chart-scroll-wrap canvas{max-height:400px}
+.chart-scroll-wrap{overflow-x:auto;overflow-y:hidden;width:100%;max-height:400px}
+.chart-scroll-wrap canvas{display:block;height:400px}
 .table-section{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-sm)}
 .table-section h3{display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:1.1rem}
 .table-section h3 i{color:var(--primary)}

@@ -190,8 +190,8 @@ function updateChart(data) {
     if(rangePts.length<2)rangePts=pts;
     var span=rangePts[rangePts.length-1].x.getTime()-rangePts[0].x.getTime();
     var hrs=span/3600000;
-    var cw=Math.max(600,Math.min(hrs*40,4000));
-    canvas.style.width=cw+'px';canvas.style.maxWidth=cw+'px';canvas.style.height='400px';
+    var cw=Math.min(hrs*40,4000);
+    canvas.style.width= cw > 900 ? cw+'px' : '100%';
     var titleEl=document.getElementById('chart-title');
     if(titleEl)titleEl.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') (Last '+rangeLabel[currentRange]+')';
     currentChart=new Chart(canvas,{
