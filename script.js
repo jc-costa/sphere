@@ -196,7 +196,7 @@ function updateChart(data) {
      options:{
       responsive:true,maintainAspectRatio:false,
       scales:{
-       x:{type:'time',min:maxX-24*3600000,max:maxX,time:{unit:'hour',displayFormats:{hour:'DD/MM HH:mm'},tooltipFormat:'DD/MM/YYYY HH:mm:ss'},
+       x:{type:'time',min:maxX-24*3600000,max:maxX,time:{unit:'hour',displayFormats:{hour:'dd/MM HH:mm'},tooltipFormat:'dd/MM/yyyy HH:mm:ss'},
         ticks:{stepSize:1,autoSkip:true,maxTicksLimit:12,source:'auto'},
         title:{display:true,text:'Time (last 24 hours)',color:'#6B8E6B'}
        },
