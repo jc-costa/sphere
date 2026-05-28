@@ -208,7 +208,7 @@ function updateChart(data) {
       scales:{
        x:{type:'time',min:cutoff,max:maxX,time:{unit:'hour',displayFormats:{hour:'HH:mm'},tooltipFormat:'dd/MM/yyyy HH:mm:ss'},
         ticks:{stepSize:1,autoSkip:false,maxTicksLimit:24,source:'auto'},
-        title:{display:true,text:'Time (last 24 hours)',color:'#6B8E6B'}
+        title:{display:true,text:'Time ('+rangeLabel[currentRange].toLowerCase()+')',color:'#6B8E6B'}
        },
        y:{title:{display:true,text:metric.label+' ('+metric.unit+')',color:'#66BB6A'},beginAtZero:false}
       },
