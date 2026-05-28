@@ -206,8 +206,10 @@ function updateChart(data) {
       },
       plugins:{
        tooltip:{callbacks:{label:function(ctx){
-        var pt=ctx.raw;return new Date(pt.x).toLocaleString('pt-BR')+': '+pt.y+' '+metric.unit
-       }}},
+        var pt=ctx.raw,dt=new Date(pt.x);
+        var fd=dt.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+        return fd+': '+pt.y+' '+metric.unit
+       }},backgroundColor:'rgba(46,125,50,0.95)',titleColor:'#fff',bodyColor:'#f5f9f5',cornerRadius:8,bodyFont:{size:12},titleFont:{size:12}},
        legend:{position:'top',labels:{usePointStyle:true}}
       }
      }
