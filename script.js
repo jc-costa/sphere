@@ -181,7 +181,7 @@ function updateChart(data) {
     if(pts.length===0)return;
     if(currentChart){currentChart.destroy();currentChart=null}
     var maxX=pts[pts.length-1].x.getTime();
-    canvas.style.width='900px';canvas.style.maxWidth='900px';canvas.style.height='400px';
+    canvas.style.height='400px';
     var titleEl=document.getElementById('chart-title');
     if(titleEl)titleEl.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') (Last 24 Hours)';
     currentChart=new Chart(canvas,{
@@ -196,8 +196,8 @@ function updateChart(data) {
      options:{
       responsive:true,maintainAspectRatio:false,
       scales:{
-       x:{type:'time',min:maxX-24*3600000,max:maxX,time:{unit:'hour',displayFormats:{hour:'dd/MM HH:mm'},tooltipFormat:'dd/MM/yyyy HH:mm:ss'},
-        ticks:{stepSize:1,autoSkip:true,maxTicksLimit:12,source:'auto'},
+       x:{type:'time',min:maxX-24*3600000,max:maxX,time:{unit:'hour',displayFormats:{hour:'HH:mm'},tooltipFormat:'dd/MM/yyyy HH:mm:ss'},
+        ticks:{stepSize:1,autoSkip:false,maxTicksLimit:24,source:'auto'},
         title:{display:true,text:'Time (last 24 hours)',color:'#6B8E6B'}
        },
        y:{title:{display:true,text:metric.label+' ('+metric.unit+')',color:'#66BB6A'},beginAtZero:false}
@@ -212,8 +212,7 @@ function updateChart(data) {
       }
      }
     });
-    var wrapper=document.querySelector('.chart-scroll-wrap');
-    if(wrapper){setTimeout(function(){wrapper.scrollLeft=wrapper.scrollWidth},50)}
+
 }
 function updateTable(data) {
     const tbody = document.getElementById('table-body');
