@@ -180,12 +180,10 @@ function updateChart(data) {
     pts.sort(function(a,b){return a.x-b.x});
     if(pts.length===0)return;
     if(currentChart){currentChart.destroy();currentChart=null}
-    var minX=pts[0].x,maxX=pts[pts.length-1].x;
-    var hrs=(maxX-minX)/3600000;
-    var cw=Math.max(800,hrs*60);
-    canvas.style.width=cw+'px';canvas.style.maxWidth=cw+'px';canvas.style.height='400px';
+    var maxX=pts[pts.length-1].x.getTime();
+    canvas.style.width='900px';canvas.style.maxWidth='900px';canvas.style.height='400px';
     var titleEl=document.getElementById('chart-title');
-    if(titleEl)titleEl.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+')';
+    if(titleEl)titleEl.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') (Last 24 Hours)';
     currentChart=new Chart(canvas,{
      type:'line',data:{datasets:[{
       label:metric.label+' ('+metric.unit+')',data:pts,
@@ -198,9 +196,9 @@ function updateChart(data) {
      options:{
       responsive:true,maintainAspectRatio:false,
       scales:{
-       x:{type:'time',time:{unit:'hour',displayFormats:{hour:'HH:mm'},tooltipFormat:'DD/MM/YYYY HH:mm:ss'},
-        ticks:{stepSize:1,autoSkip:false,maxTicksLimit:24,source:'auto'},
-        title:{display:true,text:'Time',color:'#6B8E6B'}
+       x:{type:'time',min:maxX-24*3600000,max:maxX,time:{unit:'hour',displayFormats:{hour:'DD/MM HH:mm'},tooltipFormat:'DD/MM/YYYY HH:mm:ss'},
+        ticks:{stepSize:1,autoSkip:true,maxTicksLimit:12,source:'auto'},
+        title:{display:true,text:'Time (last 24 hours)',color:'#6B8E6B'}
        },
        y:{title:{display:true,text:metric.label+' ('+metric.unit+')',color:'#66BB6A'},beginAtZero:false}
       },
