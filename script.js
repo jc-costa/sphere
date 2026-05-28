@@ -187,7 +187,9 @@ function updateChart(data) {
     var ms=rangeMs[currentRange]||86400000;
     var cutoff=maxX-ms;
     var rangePts=pts.filter(function(p){return p.x.getTime()>=cutoff});
-    if(rangePts.length<2){
+    var insufficient=rangePts.length<5||(currentRange==='15d'&&rangePts.length<10)||(currentRange==='30d'&&rangePts.length<15)||(currentRange==='all'&&rangePts.length<20);
+    if(insufficient){
+     if(currentChart){currentChart.destroy();currentChart=null}
      var ctx=canvas.getContext('2d');
      ctx.clearRect(0,0,canvas.width,canvas.height);
      ctx.font='16px "Inter",sans-serif';ctx.fillStyle='#6B8E6B';ctx.textAlign='center';
