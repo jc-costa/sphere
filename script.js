@@ -187,7 +187,15 @@ function updateChart(data) {
     var ms=rangeMs[currentRange]||86400000;
     var cutoff=maxX-ms;
     var rangePts=pts.filter(function(p){return p.x.getTime()>=cutoff});
-    if(rangePts.length<2)rangePts=pts;
+    if(rangePts.length<2){
+     var ctx=canvas.getContext('2d');
+     ctx.clearRect(0,0,canvas.width,canvas.height);
+     ctx.font='14px Inter,sans-serif';ctx.fillStyle='#6B8E6B';ctx.textAlign='center';
+     ctx.fillText('Unfortunately, there is not enough data for this period of time!',canvas.width/2,canvas.height/2);
+     var titleEl=document.getElementById('chart-title');
+     if(titleEl)titleEl.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') (Last '+rangeLabel[currentRange]+')';
+     return;
+    }
     var span=rangePts[rangePts.length-1].x.getTime()-rangePts[0].x.getTime();
     var hrs=span/3600000;
     var cw=Math.min(hrs*40,4000);
