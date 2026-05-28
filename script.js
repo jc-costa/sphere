@@ -182,8 +182,8 @@ function updateChart(data) {
     if(pts.length===0)return;
     if(currentChart){currentChart.destroy();currentChart=null}
     var maxX=pts[pts.length-1].x.getTime();
-    var rangeMs={24h:86400000,7d:604800000,15d:1296000000,30d:2592000000,all:pts[pts.length-1].x.getTime()-pts[0].x.getTime()};
-    var rangeLabel={24h:'24 Hours',7d:'7 Days',15d:'15 Days',30d:'30 Days',all:'All Time'};
+    var rangeMs={'24h':86400000,'7d':604800000,'15d':1296000000,'30d':2592000000,'all':pts[pts.length-1].x.getTime()-pts[0].x.getTime()};
+    var rangeLabel={'24h':'24 Hours','7d':'7 Days','15d':'15 Days','30d':'30 Days','all':'All Time'};
     var ms=rangeMs[currentRange]||86400000;
     var cutoff=maxX-ms;
     var rangePts=pts.filter(function(p){return p.x.getTime()>=cutoff});
