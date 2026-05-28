@@ -62,23 +62,23 @@ function parseCSV(csvText) {
 async function fetchSheetData() {
     if (isLoading) return null;
     isLoading = true;
-    showLoading(true);
     try {
         const response = await fetch(CSV_URL);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
         const csvText = await response.text();
         const data = parseCSV(csvText);
         if (data.length === 0) throw new Error('No data rows');
         hideWarning();
-        console.log(`✅ Fetched ${data.length} rows`);
+        console.log('Fetched ' + data.length + ' rows');
         return data;
     } catch (err) {
-        console.error('Fetch error:', err);
-        showWarning('Could not fetch live data. Using sample data. Make sure your sheet is published (File → Share → Publish to web).');
-        return parseCSV(SAMPLE_CSV);
+        console.error('Fetch error:', err.message);
+        showWarning('Could not fetch live data. Using sample data. Make sure your sheet is published (File > Share > Publish to web).');
+        var fallback = parseCSV(SAMPLE_CSV);
+        if (fallback.length) return fallback;
+        return null;
     } finally {
         isLoading = false;
-        showLoading(false);
     }
 }
 
@@ -257,15 +257,30 @@ function setActiveMetricCard(metricId) {
 
 // Main update cycle
 async function fetchAndUpdate() {
+    console.log('fetchAndUpdate started');
     showLoading(true);
-    const data = await fetchSheetData();
-    if (data && data.length) {
-        currentData = data;
-        updateCards(data);
-        updateChart(data);
-        updateTable(data);
+    try {
+        const data = await fetchSheetData();
+        console.log('Data fetched, rows:', data ? data.length : 0);
+        if (data && data.length) {
+            currentData = data;
+            console.log('Calling updateCards...');
+            updateCards(data);
+            console.log('Calling updateChart...');
+            updateChart(data);
+            console.log('Calling updateTable...');
+            updateTable(data);
+            console.log('All updates completed');
+        } else {
+            console.warn('No data received');
+            showWarning('No data received from sheet.');
+        }
+    } catch (err) {
+        console.error('Error in fetchAndUpdate:', err);
+        showWarning('Error loading data. Check console for details.');
+    } finally {
+        showLoading(false);
     }
-    showLoading(false);
 }
 
 // Initialization
