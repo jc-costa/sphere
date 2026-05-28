@@ -6,6 +6,7 @@ let currentChart = null;
 let currentData = [];
 let isLoading = false;
 let currentMetric = 'tempBME';
+let currentRange = '24h';
 
 // Metric configuration
 const METRICS = [
@@ -181,9 +182,18 @@ function updateChart(data) {
     if(pts.length===0)return;
     if(currentChart){currentChart.destroy();currentChart=null}
     var maxX=pts[pts.length-1].x.getTime();
-    canvas.style.height='400px';
+    var rangeMs={24h:86400000,7d:604800000,15d:1296000000,30d:2592000000,all:pts[pts.length-1].x.getTime()-pts[0].x.getTime()};
+    var rangeLabel={24h:'24 Hours',7d:'7 Days',15d:'15 Days',30d:'30 Days',all:'All Time'};
+    var ms=rangeMs[currentRange]||86400000;
+    var cutoff=maxX-ms;
+    var rangePts=pts.filter(function(p){return p.x.getTime()>=cutoff});
+    if(rangePts.length<2)rangePts=pts;
+    var span=rangePts[rangePts.length-1].x.getTime()-rangePts[0].x.getTime();
+    var hrs=span/3600000;
+    var cw=Math.max(600,Math.min(hrs*40,4000));
+    canvas.style.width=cw+'px';canvas.style.maxWidth=cw+'px';canvas.style.height='400px';
     var titleEl=document.getElementById('chart-title');
-    if(titleEl)titleEl.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') (Last 24 Hours)';
+    if(titleEl)titleEl.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') (Last '+rangeLabel[currentRange]+')';
     currentChart=new Chart(canvas,{
      type:'line',data:{datasets:[{
       label:metric.label+' ('+metric.unit+')',data:pts,
@@ -196,7 +206,7 @@ function updateChart(data) {
      options:{
       responsive:true,maintainAspectRatio:false,
       scales:{
-       x:{type:'time',min:maxX-24*3600000,max:maxX,time:{unit:'hour',displayFormats:{hour:'HH:mm'},tooltipFormat:'dd/MM/yyyy HH:mm:ss'},
+       x:{type:'time',min:cutoff,max:maxX,time:{unit:'hour',displayFormats:{hour:'HH:mm'},tooltipFormat:'dd/MM/yyyy HH:mm:ss'},
         ticks:{stepSize:1,autoSkip:false,maxTicksLimit:24,source:'auto'},
         title:{display:true,text:'Time (last 24 hours)',color:'#6B8E6B'}
        },
@@ -296,6 +306,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+    });
+
+    // Range button handlers
+    document.querySelectorAll('.range-btn').forEach(function(btn){
+     btn.addEventListener('click',function(){
+      document.querySelectorAll('.range-btn').forEach(function(b){b.classList.remove('active')});
+      btn.classList.add('active');
+      currentRange=btn.getAttribute('data-range');
+      if(currentData.length){updateChart(currentData)}
+     });
     });
 
     // Set default active card (temperature)
