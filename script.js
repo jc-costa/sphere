@@ -189,9 +189,10 @@ function updateChart(data) {
     }
     var filt=pts.filter(function(p){return p.x>=minX});
     var ins=false;
-    if(currentRange==='15d'&&filt.length<3)ins=true;
-    if(currentRange==='30d'&&filt.length<5)ins=true;
-    if(currentRange==='all'&&filt.length<10)ins=true;
+    if(filt.length<2){ins=true}else if(currentRange!=='24h'){
+     var oldest=filt[0].x;
+     if(!oldest||oldest>minX)ins=true
+    }
     if(ins){
      if(currentChart){currentChart.destroy();currentChart=null}
      var ctx=canvas.getContext('2d');
