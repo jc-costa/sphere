@@ -191,7 +191,7 @@ function updateChart(data) {
     var ins=false;
     if(filt.length<2){ins=true}else if(currentRange!=='24h'){
      var oldest=filt[0].x;
-     if(!oldest||oldest>minX)ins=true
+     if(!oldest){ins=true}else if(oldest.getTime()>minX.getTime()+3600000){ins=true}
     }
     if(ins){
      if(currentChart){currentChart.destroy();currentChart=null}
