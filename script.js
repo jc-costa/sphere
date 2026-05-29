@@ -164,10 +164,7 @@ function updateChart(data) {
     if (!canvas) return;
     var metric = METRICS.find(function(m){return m.id===currentMetric});
     if (!metric) return;
-    /*N1*/
-
-    // Prepare points from ALL data
-    var pts = [];
+    var pts=[];
     data.forEach(function(row){
      var ts=row['Data/Hora'];if(!ts)return;
      var parts=ts.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
@@ -180,33 +177,41 @@ function updateChart(data) {
     });
     pts.sort(function(a,b){return a.x-b.x});
     if(pts.length===0)return;
-    if(currentChart){currentChart.destroy();currentChart=null}
-    var maxX=pts[pts.length-1].x.getTime();
-    var rangeMs={'24h':86400000,'7d':604800000,'15d':1296000000,'30d':2592000000,'all':pts[pts.length-1].x.getTime()-pts[0].x.getTime()};
-    var rangeLabel={'24h':'24 Hours','7d':'7 Days','15d':'15 Days','30d':'30 Days','all':'All Time'};
-    var ms=rangeMs[currentRange]||86400000;
-    var cutoff=maxX-ms;
-    var rangePts=pts.filter(function(p){return p.x.getTime()>=cutoff});
-    var insufficient=rangePts.length<5||(currentRange==='15d'&&rangePts.length<10)||(currentRange==='30d'&&rangePts.length<15)||(currentRange==='all'&&rangePts.length<20);
-    if(insufficient){
+    var maxX=pts[pts.length-1].x;
+    var minX,timeUnit='hour',dispFmt='HH:mm',titleSfx='';
+    switch(currentRange){
+     case'24h':minX=new Date(maxX.getTime()-86400000);titleSfx='Last 24 Hours';break;
+     case'7d':minX=new Date(maxX.getTime()-7*86400000);titleSfx='Last 7 Days';break;
+     case'15d':minX=new Date(maxX.getTime()-15*86400000);titleSfx='Last 15 Days';timeUnit='day';dispFmt='dd/MM';break;
+     case'30d':minX=new Date(maxX.getTime()-30*86400000);titleSfx='Last 30 Days';timeUnit='day';dispFmt='dd/MM';break;
+     case'all':minX=pts[0].x;titleSfx='All Data';timeUnit='day';dispFmt='dd/MM';break;
+     default:minX=new Date(maxX.getTime()-86400000);titleSfx='Last 24 Hours'
+    }
+    var filt=pts.filter(function(p){return p.x>=minX});
+    var ins=false;
+    if(currentRange==='15d'&&filt.length<3)ins=true;
+    if(currentRange==='30d'&&filt.length<5)ins=true;
+    if(currentRange==='all'&&filt.length<10)ins=true;
+    if(ins){
      if(currentChart){currentChart.destroy();currentChart=null}
      var ctx=canvas.getContext('2d');
      ctx.clearRect(0,0,canvas.width,canvas.height);
      ctx.font='16px "Inter",sans-serif';ctx.fillStyle='#6B8E6B';ctx.textAlign='center';
      ctx.fillText('Unfortunately, there is not enough data for this period of time!',canvas.width/2,canvas.height/2);
-     var titleEl=document.getElementById('chart-title');
-     if(titleEl)titleEl.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') (Last '+rangeLabel[currentRange]+')';
-     return;
+     var te=document.getElementById('chart-title');
+     if(te)te.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') - '+titleSfx;
+     return
     }
-    var span=rangePts[rangePts.length-1].x.getTime()-rangePts[0].x.getTime();
-    var hrs=span/3600000;
-    var cw=Math.min(hrs*40,4000);
-    canvas.style.width= cw > 900 ? cw+'px' : '100%';
-    var titleEl=document.getElementById('chart-title');
-    if(titleEl)titleEl.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') (Last '+rangeLabel[currentRange]+')';
-    currentChart=new Chart(canvas,{
+    var hrs=(maxX-minX)/3600000;
+    var ppd=currentRange==='24h'||currentRange==='7d'?60:30;
+    var cw=Math.max(800,hrs*ppd);
+    canvas.style.width=cw+'px';canvas.style.height='400px';
+    if(currentChart){currentChart.destroy();currentChart=null}
+    var te=document.getElementById('chart-title');
+    if(te)te.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') - '+titleSfx;
+    currentChart=new Chart(canvas.getContext('2d'),{
      type:'line',data:{datasets:[{
-      label:metric.label+' ('+metric.unit+')',data:pts,
+      label:metric.label+' ('+metric.unit+')',data:filt,
       borderColor:'#66BB6A',backgroundColor:'rgba(102,187,106,0.2)',
       borderWidth:2.5,pointRadius:2.5,
       pointBackgroundColor:'#fff',pointBorderColor:'#66BB6A',pointBorderWidth:2,
@@ -216,23 +221,22 @@ function updateChart(data) {
      options:{
       responsive:true,maintainAspectRatio:false,
       scales:{
-       x:{type:'time',min:cutoff,max:maxX,time:{unit:'hour',displayFormats:{hour:'HH:mm'},tooltipFormat:'dd/MM/yyyy HH:mm:ss'},
-        ticks:{stepSize:1,autoSkip:false,maxTicksLimit:24,source:'auto'},
-        title:{display:true,text:'Time ('+rangeLabel[currentRange].toLowerCase()+')',color:'#6B8E6B'}
+       x:{type:'time',min:minX,max:maxX,time:{unit:timeUnit,displayFormats:{hour:dispFmt,day:dispFmt},tooltipFormat:'dd/MM/yyyy HH:mm:ss'},
+        ticks:{stepSize:1,autoSkip:true,maxTicksLimit:12},
+        title:{display:true,text:'Time ('+titleSfx+')',color:'#6B8E6B'}
        },
        y:{title:{display:true,text:metric.label+' ('+metric.unit+')',color:'#66BB6A'},beginAtZero:false}
       },
       plugins:{
        tooltip:{callbacks:{label:function(ctx){
-        var pt=ctx.raw,dt=new Date(pt.x);
-        var fd=dt.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
-        return fd+': '+pt.y+' '+metric.unit
-       }},backgroundColor:'rgba(46,125,50,0.95)',titleColor:'#fff',bodyColor:'#f5f9f5',cornerRadius:8,bodyFont:{size:12},titleFont:{size:12}},
+        var pt=ctx.raw;return new Date(pt.x).toLocaleString('pt-BR')+': '+pt.y+' '+metric.unit
+       }}},
        legend:{position:'top',labels:{usePointStyle:true}}
       }
      }
     });
-
+    var wr=document.querySelector('.chart-scroll-wrap');
+    if(wr)wr.scrollLeft=wr.scrollWidth;
 }
 function updateTable(data) {
     const tbody = document.getElementById('table-body');
