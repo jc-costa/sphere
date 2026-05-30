@@ -7,6 +7,12 @@ let currentData = [];
 let isLoading = false;
 let currentMetric = 'tempBME';
 let currentRange = '24h';
+var lang=navigator.language||'en';if(lang.startsWith('pt'))lang='pt';else lang='en';
+var TR={
+ en:{temp:'Temperature',hum:'Humidity',press:'Pressure',co2:'CO2',light:'Light',humidity:'Humidity',loading:'Loading sensor data...',retry:'Retry',lastUpd:'Last updated',timeAxis:'Time',tableT:'Recent Records',teamT:'Our Team',devT:"What We're Building",contactT:'Get in Touch',insuf:'Not enough data for this period',insufHint:'Try selecting a shorter range (e.g., 24h or 7d)',chartT:'{{metric}} - {{range}}',warning:'Could not fetch live data. Using sample data. Make sure your sheet is published (File > Share > Publish to web).'},
+ pt:{temp:'Temperatura',hum:'Umidade',press:'Pressao',co2:'CO2',light:'Luz',humidity:'Umidade',loading:'Carregando dados...',retry:'Tentar novamente',lastUpd:'Ultima atualizacao',timeAxis:'Tempo',tableT:'Registros Recentes',teamT:'Nossa Equipe',devT:'O que estamos construindo',contactT:'Entre em contato',insuf:'Dados insuficientes para este periodo',insufHint:'Tente selecionar um periodo menor (ex: 24h ou 7d)',chartT:'{{metric}} - {{range}}',warning:'Nao foi possivel obter dados ao vivo. Usando dados de exemplo. Publique a planilha (File > Share > Publish to web).'}
+};
+function __(k){return TR[lang][k]||k}
 
 // Metric configuration
 const METRICS = [
@@ -74,7 +80,7 @@ async function fetchSheetData() {
         return data;
     } catch (err) {
         console.error('Fetch error:', err.message);
-        showWarning('Could not fetch live data. Using sample data. Make sure your sheet is published (File > Share > Publish to web).');
+        showWarning(__('warning'));
         var fallback = parseCSV(SAMPLE_CSV);
         if (fallback.length) return fallback;
         return null;
@@ -196,7 +202,11 @@ function updateChart(data) {
     if(ins){
      if(currentChart){currentChart.destroy();currentChart=null}
      var ov=document.getElementById('chart-overlay');
-     if(ov)ov.style.display='block';
+     if(ov){
+      ov.style.display='block';
+      ov.querySelector('p:first-of-type').textContent=' '+__('insuf');
+      ov.querySelector('p:last-of-type').textContent=__('insufHint');
+     }
      var te=document.getElementById('chart-title');
      if(te)te.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') - '+titleSfx;
      return
@@ -225,13 +235,13 @@ function updateChart(data) {
       scales:{
        x:{type:'time',min:minX,max:maxX,time:{unit:timeUnit,displayFormats:{hour:dispFmt,day:dispFmt},tooltipFormat:'dd/MM/yyyy HH:mm:ss'},
         ticks:{stepSize:1,autoSkip:true,maxTicksLimit:12},
-        title:{display:true,text:'Time ('+titleSfx+')',color:'#6B8E6B'}
+        title:{display:true,text:__('timeAxis')+' ('+titleSfx+')',color:'#6B8E6B'}
        },
        y:{title:{display:true,text:metric.label+' ('+metric.unit+')',color:'#66BB6A'},beginAtZero:false}
       },
       plugins:{
        tooltip:{callbacks:{label:function(ctx){
-        var pt=ctx.raw;return new Date(pt.x).toLocaleString('pt-BR')+': '+pt.y+' '+metric.unit
+        var pt=ctx.raw;return new Date(pt.x).toLocaleString(lang==='pt'?'pt-BR':'en')+': '+pt.y+' '+metric.unit
        }}},
        legend:{position:'top',labels:{usePointStyle:true}}
       }
