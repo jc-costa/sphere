@@ -120,6 +120,11 @@
         <div class="chart-scroll-wrap">
           <canvas id="sensor-chart" aria-label="Temperature chart"></canvas>
         </div>
+        <div id="chart-overlay" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,0.95);border-radius:12px;padding:20px 24px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:10;pointer-events:none;border-left:4px solid #66BB6A;">
+          <i class="fas fa-chart-line" style="font-size:32px;color:#66BB6A;margin-bottom:12px;display:block;"></i>
+          <p style="font-family:'Inter',sans-serif;font-size:16px;font-weight:600;color:#2E7D32;margin:0 0 8px 0;">Not enough data for this period</p>
+          <p style="font-family:'Inter',sans-serif;font-size:14px;color:#6B8E6B;margin:0;">Try selecting a shorter range (e.g., 24h or 7d)</p>
+        </div>
       </div>
     </div>
 
