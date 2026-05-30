@@ -195,10 +195,13 @@ function updateChart(data) {
     }
     if(ins){
      if(currentChart){currentChart.destroy();currentChart=null}
+     canvas.width=Math.max(canvas.width,800);
      var ctx=canvas.getContext('2d');
      ctx.clearRect(0,0,canvas.width,canvas.height);
-     ctx.font='16px "Inter",sans-serif';ctx.fillStyle='#6B8E6B';ctx.textAlign='center';
-     ctx.fillText('Unfortunately, there is not enough data for this period of time!',canvas.width/2,canvas.height/2);
+     ctx.font='18px "Inter",sans-serif';ctx.fillStyle='#2E7D32';ctx.textAlign='center';
+     ctx.fillText('Not enough data for this period',canvas.width/2,canvas.height/2-20);
+     ctx.font='14px "Inter",sans-serif';ctx.fillStyle='#6B8E6B';
+     ctx.fillText('Try selecting a shorter range (e.g., 24h or 7d)',canvas.width/2,canvas.height/2+20);
      var te=document.getElementById('chart-title');
      if(te)te.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') - '+titleSfx;
      return
