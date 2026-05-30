@@ -187,10 +187,10 @@ function updateChart(data) {
     var minX,timeUnit='hour',dispFmt='HH:mm',titleSfx='';
     switch(currentRange){
      case'24h':minX=new Date(maxX.getTime()-86400000);titleSfx='Last 24 Hours';break;
-     case'7d':minX=new Date(maxX.getTime()-7*86400000);titleSfx='Last 7 Days';break;
-     case'15d':minX=new Date(maxX.getTime()-15*86400000);titleSfx='Last 15 Days';timeUnit='day';dispFmt='dd/MM';break;
-     case'30d':minX=new Date(maxX.getTime()-30*86400000);titleSfx='Last 30 Days';timeUnit='day';dispFmt='dd/MM';break;
-     case'all':minX=pts[0].x;titleSfx='All Data';timeUnit='day';dispFmt='dd/MM';break;
+     case'7d':var d7=new Date(maxX.getTime()-7*86400000);d7.setHours(0,0,0,0);minX=d7;titleSfx='Last 7 Days';break;
+     case'15d':var d15=new Date(maxX.getTime()-15*86400000);d15.setHours(0,0,0,0);minX=d15;titleSfx='Last 15 Days';timeUnit='day';dispFmt='dd/MM';break;
+     case'30d':var d30=new Date(maxX.getTime()-30*86400000);d30.setHours(0,0,0,0);minX=d30;titleSfx='Last 30 Days';timeUnit='day';dispFmt='dd/MM';break;
+     case'all':var da=pts[0].x;da=new Date(da);da.setHours(0,0,0,0);minX=da;titleSfx='All Data';timeUnit='day';dispFmt='dd/MM';break;
      default:minX=new Date(maxX.getTime()-86400000);titleSfx='Last 24 Hours'
     }
     var filt=pts.filter(function(p){return p.x>=minX});
