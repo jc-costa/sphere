@@ -9,18 +9,18 @@ let currentMetric = 'tempBME';
 let currentRange = '24h';
 var lang=navigator.language||'en';if(lang.startsWith('pt'))lang='pt';else lang='en';
 var TR={
- en:{temp:'Temperature',hum:'Humidity',press:'Pressure',co2:'CO2',light:'Light',humidity:'Humidity',loading:'Loading sensor data...',retry:'Retry',lastUpd:'Last updated',timeAxis:'Time',tableT:'Recent Records',teamT:'Our Team',devT:"What We're Building",contactT:'Get in Touch',insuf:'Not enough data for this period',insufHint:'Try selecting a shorter range (e.g., 24h or 7d)',chartT:'{{metric}} - {{range}}',warning:'Could not fetch live data. Using sample data. Make sure your sheet is published (File > Share > Publish to web).'},
- pt:{temp:'Temperatura',hum:'Umidade',press:'Pressao',co2:'CO2',light:'Luz',humidity:'Umidade',loading:'Carregando dados...',retry:'Tentar novamente',lastUpd:'Ultima atualizacao',timeAxis:'Tempo',tableT:'Registros Recentes',teamT:'Nossa Equipe',devT:'O que estamos construindo',contactT:'Entre em contato',insuf:'Dados insuficientes para este periodo',insufHint:'Tente selecionar um periodo menor (ex: 24h ou 7d)',chartT:'{{metric}} - {{range}}',warning:'Nao foi possivel obter dados ao vivo. Usando dados de exemplo. Publique a planilha (File > Share > Publish to web).'}
+ en:{temp:'Temperature',hum:'Humidity',press:'Pressure',co2:'CO2',light:'Light',humidity:'Humidity',loading:'Loading sensor data...',retry:'Retry',lastUpd:'Last updated',timeAxis:'Time',tableT:'Recent Records',teamT:'Our Team',devT:"What We're Building",contactT:'Get in Touch',insuf:'Not enough data for this period',insufHint:'Try selecting a shorter range (e.g., 24h or 7d)',chartT:'{{metric}} - {{range}}',warning:'Could not fetch live data. Using sample data. Make sure your sheet is published (File > Share > Publish to web).',last24h:'Last 24 Hours',last7d:'Last 7 Days',last15d:'Last 15 Days',last30d:'Last 30 Days',allData:'All Data',contactMsg:'Thanks for your message! We will get back to you soon.'},
+ pt:{temp:'Temperatura',hum:'Umidade',press:'Pressao',co2:'CO2',light:'Luz',humidity:'Umidade',loading:'Carregando dados...',retry:'Tentar novamente',lastUpd:'Ultima atualizacao',timeAxis:'Tempo',tableT:'Registros Recentes',teamT:'Nossa Equipe',devT:'O que estamos construindo',contactT:'Entre em contato',insuf:'Dados insuficientes para este periodo',insufHint:'Tente selecionar um periodo menor (ex: 24h ou 7d)',chartT:'{{metric}} - {{range}}',warning:'Nao foi possivel obter dados ao vivo. Usando dados de exemplo. Publique a planilha (File > Share > Publish to web).',last24h:'Ultimas 24 horas',last7d:'Ultimos 7 dias',last15d:'Ultimos 15 dias',last30d:'Ultimos 30 dias',allData:'Todos os dados',contactMsg:'Obrigado pela sua mensagem! Entraremos em contato em breve.'}
 };
 function __(k){return TR[lang][k]||k}
 
 // Metric configuration
 const METRICS = [
-    { id: 'tempBME', label: 'Temperature', unit: '°C', decimals: 1, cardId: 'val-temp', cardElementId: 'card-temp' },
-    { id: 'humBME', label: 'Humidity', unit: '%', decimals: 1, cardId: 'val-humidity', cardElementId: 'card-humidity' },
-    { id: 'pressBME', label: 'Pressure', unit: 'hPa', decimals: 2, cardId: 'val-pressure', cardElementId: 'card-pressure' },
-    { id: 'co2SGP', label: 'CO₂', unit: 'ppm', decimals: 0, cardId: 'val-co2', cardElementId: 'card-co2' },
-    { id: 'tlsLUX', label: 'Light', unit: 'lux', decimals: 0, cardId: 'val-light', cardElementId: 'card-light' }
+    { id: 'tempBME', label: __('temp'), unit: '°C', decimals: 1, cardId: 'val-temp', cardElementId: 'card-temp' },
+    { id: 'humBME', label: __('hum'), unit: '%', decimals: 1, cardId: 'val-humidity', cardElementId: 'card-humidity' },
+    { id: 'pressBME', label: __('press'), unit: 'hPa', decimals: 2, cardId: 'val-pressure', cardElementId: 'card-pressure' },
+    { id: 'co2SGP', label: __('co2'), unit: 'ppm', decimals: 0, cardId: 'val-co2', cardElementId: 'card-co2' },
+    { id: 'tlsLUX', label: __('light'), unit: 'lux', decimals: 0, cardId: 'val-light', cardElementId: 'card-light' }
 ];
 
 // Sample data fallback (same structure)
@@ -110,12 +110,13 @@ function hideWarning() {
 function parseTimestamp(ts) {
     if (!ts) return null;
     if (typeof ts === 'string') {
-        var parts = ts.split(/[\s\/:]/);
-        if (parts.length >= 6) {
-            var d = new Date(parseInt(parts[2],10), parseInt(parts[1],10)-1, parseInt(parts[0],10),
-                             parseInt(parts[3],10), parseInt(parts[4],10), parseInt(parts[5],10));
-            return isNaN(d.getTime()) ? null : d;
-        }
+     var d=null;
+     var m=ts.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+     if(m){d=new Date(m[3],m[2]-1,m[1],m[4],m[5],m[6])}else{
+      m=ts.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+      if(m){d=new Date(m[1],m[2]-1,m[3],m[4],m[5],m[6])}else{d=new Date(ts)}
+     }
+     return d&&!isNaN(d.getTime())?d:null;
     }
     if (ts instanceof Date) return ts;
     return null;
@@ -161,7 +162,10 @@ function updateCards(data) {
         }
     });
     const updateEl = document.getElementById('update-time');
-    if (updateEl) updateEl.textContent = new Date().toLocaleTimeString('pt-BR', { hour12: false });
+    if (updateEl&&data&&data.length){
+     var ts=data[data.length-1]['Data/Hora'];
+     if(ts)updateEl.textContent=ts;
+    }
 }
 
 // Update chart with current metric
@@ -186,12 +190,12 @@ function updateChart(data) {
     var maxX=pts[pts.length-1].x;
     var minX,timeUnit='hour',dispFmt='HH:mm',titleSfx='';
     switch(currentRange){
-     case'24h':minX=new Date(maxX.getTime()-86400000);titleSfx='Last 24 Hours';break;
-     case'7d':var d7=new Date(maxX.getTime()-7*86400000);d7.setHours(0,0,0,0);minX=d7;titleSfx='Last 7 Days';break;
-     case'15d':var d15=new Date(maxX.getTime()-15*86400000);d15.setHours(0,0,0,0);minX=d15;titleSfx='Last 15 Days';timeUnit='day';dispFmt='dd/MM';break;
-     case'30d':var d30=new Date(maxX.getTime()-30*86400000);d30.setHours(0,0,0,0);minX=d30;titleSfx='Last 30 Days';timeUnit='day';dispFmt='dd/MM';break;
-     case'all':var da=pts[0].x;da=new Date(da);da.setHours(0,0,0,0);minX=da;titleSfx='All Data';timeUnit='day';dispFmt='dd/MM';break;
-     default:minX=new Date(maxX.getTime()-86400000);titleSfx='Last 24 Hours'
+     case'24h':minX=new Date(maxX.getTime()-86400000);titleSfx='last24h';break;
+     case'7d':var d7=new Date(maxX.getTime()-7*86400000);d7.setHours(0,0,0,0);minX=d7;titleSfx='last7d';break;
+     case'15d':var d15=new Date(maxX.getTime()-15*86400000);d15.setHours(0,0,0,0);minX=d15;titleSfx='last15d';timeUnit='day';dispFmt='dd/MM';break;
+     case'30d':var d30=new Date(maxX.getTime()-30*86400000);d30.setHours(0,0,0,0);minX=d30;titleSfx='last30d';timeUnit='day';dispFmt='dd/MM';break;
+     case'all':var da=pts[0].x;da=new Date(da);da.setHours(0,0,0,0);minX=da;titleSfx='allData';timeUnit='day';dispFmt='dd/MM';break;
+     default:minX=new Date(maxX.getTime()-86400000);titleSfx='last24h'
     }
     var filt=pts.filter(function(p){return p.x>=minX});
     var ins=false;
@@ -208,19 +212,17 @@ function updateChart(data) {
       ov.querySelector('p:last-of-type').textContent=__('insufHint');
      }
      var te=document.getElementById('chart-title');
-     if(te)te.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') - '+titleSfx;
+     if(te)te.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') - '+__(titleSfx);
      return
     }else{
      var ov=document.getElementById('chart-overlay');
      if(ov)ov.style.display='none';
     }
-    var hrs=(maxX-minX)/3600000;
-    var ppd=currentRange==='24h'||currentRange==='7d'?60:30;
-    var cw=Math.max(800,hrs*ppd);
-    canvas.style.width=cw+'px';canvas.style.height='400px';
+    var baseWidth=currentRange==='24h'?1000:(currentRange==='7d'?1200:1400);
+    canvas.style.width=baseWidth+'px';canvas.style.height='400px';
     if(currentChart){currentChart.destroy();currentChart=null}
     var te=document.getElementById('chart-title');
-    if(te)te.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') - '+titleSfx;
+    if(te)te.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') - '+__(titleSfx);
     currentChart=new Chart(canvas.getContext('2d'),{
      type:'line',data:{datasets:[{
       label:metric.label+' ('+metric.unit+')',data:filt,
@@ -235,7 +237,7 @@ function updateChart(data) {
       scales:{
        x:{type:'time',min:minX,max:maxX,time:{unit:timeUnit,displayFormats:{hour:dispFmt,day:dispFmt},tooltipFormat:'dd/MM/yyyy HH:mm:ss'},
         ticks:{stepSize:1,autoSkip:true,maxTicksLimit:12},
-        title:{display:true,text:__('timeAxis')+' ('+titleSfx+')',color:'#6B8E6B'}
+        title:{display:true,text:__('timeAxis')+' ('+__(titleSfx)+')',color:'#6B8E6B'}
        },
        y:{title:{display:true,text:metric.label+' ('+metric.unit+')',color:'#66BB6A'},beginAtZero:false}
       },
@@ -320,6 +322,29 @@ async function fetchAndUpdate() {
 
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
+    // Mobile nav toggle
+    var navToggle=document.getElementById('nav-toggle'),mainNav=document.getElementById('main-nav');
+    if(navToggle&&mainNav){navToggle.addEventListener('click',function(){
+     mainNav.classList.toggle('open');
+     navToggle.setAttribute('aria-expanded',mainNav.classList.contains('open'));
+     var ico=navToggle.querySelector('i');
+     if(ico)ico.className=mainNav.classList.contains('open')?'fas fa-times':'fas fa-bars'
+    });mainNav.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){
+     mainNav.classList.remove('open');
+     navToggle.setAttribute('aria-expanded','false');
+     var ico=navToggle.querySelector('i');
+     if(ico)ico.className='fas fa-bars'
+    })})}
+    // Scroll spy
+    function updateActive(){
+     var lks=document.querySelectorAll('.nav-link'),secs=document.querySelectorAll('.section[id]');
+     var y=window.pageYOffset+80,id='dashboard';
+     secs.forEach(function(s){var t=s.offsetTop,h=s.offsetHeight;if(y>=t&&y<t+h)id=s.id});
+     lks.forEach(function(l){l.classList.toggle('active',l.getAttribute('data-section')===id)})
+    }
+    updateActive();
+    window.addEventListener('scroll',function(){requestAnimationFrame(updateActive)},{passive:true});
+
     // Card click handlers
     METRICS.forEach(metric => {
         const card = document.getElementById(metric.cardElementId);
@@ -359,4 +384,11 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchAndUpdate();
         });
     }
+
+    // Contact form - prevent actual submission
+    var contactForm=document.getElementById('contact-form');
+    if(contactForm){contactForm.addEventListener('submit',function(e){
+     e.preventDefault();
+     alert( __('contactMsg') );
+    })}
 });

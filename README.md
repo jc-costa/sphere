@@ -4,7 +4,7 @@ A responsive dashboard website for the SPheRe project, displaying real-time envi
 
 ## How to Test Locally
 
-Because the site uses **JSONP** to fetch data from Google Sheets, you need a local HTTP server — opening `index.html` directly from the file system (`file://`) will **not** work for the live data feed.
+Because the site uses **fetch + CSV export** to fetch data from Google Sheets, you need a local HTTP server — opening `index.html` directly from the file system (`file://`) will **not** work for the live data feed.
 
 ### Option 1: Python HTTP Server
 
