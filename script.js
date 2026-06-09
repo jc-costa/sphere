@@ -199,11 +199,10 @@ function updateChart(data) {
     }
     var filt=pts.filter(function(p){return p.x>=minX});
     var ins=filt.length<2;
-    if(!ins&&currentRange!=='all'){
-     var span=maxX.getTime()-minX.getTime();
+    if(!ins&&currentRange!=='all'&&filt.length>1){
      var cov=filt[filt.length-1].x.getTime()-filt[0].x.getTime();
-     var req={'24h':0.5,'7d':3/7,'15d':7/15,'30d':14/30};
-     ins=cov/span<(req[currentRange]||0)
+     var req={'24h':86400000,'7d':604800000,'15d':1296000000,'30d':2592000000};
+     ins=cov<req[currentRange]
     }
     if(ins){
      if(currentChart){currentChart.destroy();currentChart=null}
