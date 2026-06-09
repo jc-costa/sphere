@@ -198,11 +198,7 @@ function updateChart(data) {
      default:minX=new Date(maxX.getTime()-86400000);titleSfx='last24h'
     }
     var filt=pts.filter(function(p){return p.x>=minX});
-    var ins=false;
-    if(filt.length<2){ins=true}else if(currentRange!=='24h'){
-     var oldest=filt[0].x;
-     if(!oldest){ins=true}else if(oldest.getTime()>minX.getTime()+3600000){ins=true}
-    }
+    var ins=filt.length<2;
     if(ins){
      if(currentChart){currentChart.destroy();currentChart=null}
      var ov=document.getElementById('chart-overlay');
