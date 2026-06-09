@@ -199,6 +199,12 @@ function updateChart(data) {
     }
     var filt=pts.filter(function(p){return p.x>=minX});
     var ins=filt.length<2;
+    if(!ins&&currentRange!=='all'){
+     var span=maxX.getTime()-minX.getTime();
+     var cov=filt[filt.length-1].x.getTime()-filt[0].x.getTime();
+     var req={'24h':0.5,'7d':3/7,'15d':7/15,'30d':14/30};
+     ins=cov/span<(req[currentRange]||0)
+    }
     if(ins){
      if(currentChart){currentChart.destroy();currentChart=null}
      var ov=document.getElementById('chart-overlay');
@@ -214,8 +220,9 @@ function updateChart(data) {
      var ov=document.getElementById('chart-overlay');
      if(ov)ov.style.display='none';
     }
-    var baseWidth=currentRange==='24h'?1000:(currentRange==='7d'?1200:1400);
-    canvas.style.width=baseWidth+'px';canvas.style.height='400px';
+    var cw=document.querySelector('.chart-scroll-wrap');
+    var cwW=cw?cw.clientWidth:900;
+    canvas.style.width=Math.max(cwW,filt.length*40)+'px';canvas.style.height='400px';
     if(currentChart){currentChart.destroy();currentChart=null}
     var te=document.getElementById('chart-title');
     if(te)te.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') - '+__(titleSfx);
