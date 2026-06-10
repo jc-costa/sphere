@@ -198,7 +198,14 @@ function updateChart(data) {
      default:minX=new Date(maxX.getTime()-86400000);titleSfx='last24h'
     }
     var filt=pts.filter(function(p){return p.x>=minX});
-    var ins=currentRange==='all'?filt.length<2:filt.length===0;
+    var ins=false;
+    if(currentRange==='all'){ins=filt.length<2}
+    else if(currentRange==='24h'){ins=filt.length===0}
+    else if(filt.length>1){
+     var cov=filt[filt.length-1].x.getTime()-filt[0].x.getTime();
+     var req={'7d':604800000,'15d':1296000000,'30d':2592000000};
+     ins=cov<(req[currentRange]||0)
+    }else{ins=true}
     if(ins){
      if(currentChart){currentChart.destroy();currentChart=null}
      var ov=document.getElementById('chart-overlay');
@@ -216,7 +223,7 @@ function updateChart(data) {
     }
     var cw=document.querySelector('.chart-scroll-wrap');
     var cwW=cw?cw.clientWidth:900;
-    canvas.style.width=Math.max(cwW,filt.length*60)+'px';canvas.style.height='400px';
+    canvas.style.width=Math.max(cwW,filt.length*70)+'px';canvas.style.height='400px';
     if(currentChart){currentChart.destroy();currentChart=null}
     var te=document.getElementById('chart-title');
     if(te)te.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') - '+__(titleSfx);
