@@ -225,9 +225,9 @@ function updateChart(data) {
      if(ov)ov.style.display='none';
     }
     var minX=filt[0].x,maxX=filt[filt.length-1].x;
-    var cw=document.querySelector('.chart-scroll-wrap');
-    var cwW=cw?cw.clientWidth:900;
-    canvas.style.width=Math.max(cwW,filt.length*70)+'px';canvas.style.height='400px';
+    var spanMs=maxX.getTime()-minX.getTime();
+    var spanH=Math.max(1,spanMs/3600000);
+    canvas.style.width=Math.max(spanH*120, filt.length*50)+'px';canvas.style.height='400px';
     if(currentChart){currentChart.destroy();currentChart=null}
     var te=document.getElementById('chart-title');
     if(te)te.innerHTML='<i class="fas fa-chart-line"></i> '+metric.label+' ('+metric.unit+') - '+__(titleSfx);
