@@ -187,17 +187,20 @@ function updateChart(data) {
     });
     pts.sort(function(a,b){return a.x-b.x});
     if(pts.length===0)return;
-    var maxX=pts[pts.length-1].x;
-    var minX,timeUnit='hour',dispFmt='HH:mm',titleSfx='';
+    var timeUnit='hour',dispFmt='HH:mm',titleSfx='last24h';
     switch(currentRange){
-     case'24h':minX=new Date(maxX.getTime()-86400000);titleSfx='last24h';break;
-     case'7d':var d7=new Date(maxX.getTime()-7*86400000);d7.setHours(0,0,0,0);minX=d7;titleSfx='last7d';break;
-     case'15d':var d15=new Date(maxX.getTime()-15*86400000);d15.setHours(0,0,0,0);minX=d15;titleSfx='last15d';timeUnit='day';dispFmt='dd/MM';break;
-     case'30d':var d30=new Date(maxX.getTime()-30*86400000);d30.setHours(0,0,0,0);minX=d30;titleSfx='last30d';timeUnit='day';dispFmt='dd/MM';break;
-     case'all':var da=pts[0].x;da=new Date(da);da.setHours(0,0,0,0);minX=da;titleSfx='allData';timeUnit='day';dispFmt='dd/MM';break;
-     default:minX=new Date(maxX.getTime()-86400000);titleSfx='last24h'
+     case'24h':titleSfx='last24h';break;
+     case'7d':titleSfx='last7d';break;
+     case'15d':titleSfx='last15d';timeUnit='day';dispFmt='dd/MM';break;
+     case'30d':titleSfx='last30d';timeUnit='day';dispFmt='dd/MM';break;
+     case'all':titleSfx='allData';timeUnit='day';dispFmt='dd/MM';break;
     }
-    var filt=pts.filter(function(p){return p.x>=minX});
+    var filt=pts.slice();
+    if(currentRange!=='all'){
+     var rangeMs={'24h':86400000,'7d':604800000,'15d':1296000000,'30d':2592000000};
+     var cutoff=pts[pts.length-1].x.getTime()-(rangeMs[currentRange]||86400000);
+     filt=pts.filter(function(p){return p.x.getTime()>=cutoff});
+    }
     var ins=false;
     if(currentRange==='all'){ins=filt.length<2}
     else if(currentRange==='24h'){ins=filt.length===0}
@@ -221,6 +224,7 @@ function updateChart(data) {
      var ov=document.getElementById('chart-overlay');
      if(ov)ov.style.display='none';
     }
+    var minX=filt[0].x,maxX=filt[filt.length-1].x;
     var cw=document.querySelector('.chart-scroll-wrap');
     var cwW=cw?cw.clientWidth:900;
     canvas.style.width=Math.max(cwW,filt.length*70)+'px';canvas.style.height='400px';
